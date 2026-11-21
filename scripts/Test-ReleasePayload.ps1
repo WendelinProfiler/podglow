@@ -14,4 +14,3 @@ foreach($file in $files){
  }
 }
 "Payload file checks passed ($($files.Count) files). No installation or hardware test performed."
-
