@@ -1,56 +1,82 @@
-﻿# AirPods Companion
+<div align="center">
 
-An experimental Windows tray widget for AirPods, built on [WPods](https://github.com/FPNDev/wpods).
+# AirPods Companion
 
-**This project is being prepared for its first public alpha. The standalone preview and credits have been tested locally; there is no tested public installer yet.** Do not treat the development build as a finished release.
+### Your AirPods, within reach on Windows.
 
-## A normal Windows app
+Battery readings, listening modes and audio controls in a compact tray widget.
 
-The widget opens from the Windows notification area. It does not replace the taskbar and does not require Windhawk, Mac Island & Dock, a Lenovo computer or a particular Windows account. If you use an Island that shows tray applications, it can display the same app icon.
+**Experimental source preview · Windows x64 · GPL-3.0**
 
-The companion shows the selected AirPods' connection, left/right/case battery values and measurement age. It provides listening modes, volume, connect/disconnect, microphone mute and automatic microphone selection. Less common controls live behind the settings button.
+[Preview](#preview) · [Build](#try-the-interface) · [Development](docs/DEVELOPMENT.md) · [Credits](CREDITS.md)
+
+</div>
+
+Built on [WPods](https://github.com/FPNDev/wpods), with a shared native interface for the Windows notification area and an optional Island integration.
+
+> **Before you install:** a tested public installer is not available yet. You can build and explore the interface with sample data. The matching Bluetooth host, driver setup and clean-machine installation still need release testing.
 
 ## Preview
 
-These are sample readings, not live measurements. The public build uses the same layout as the Island version and contains no private Apple product assets.
+<table>
+<tr><th>Everyday controls</th><th>Settings when you need them</th></tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/widget-preview.png" alt="Actual native widget in preview mode, showing sample battery readings, listening modes and volume" width="400"></td>
+<td width="50%"><img src="docs/screenshots/settings-preview.png" alt="Settings page in the actual standalone native widget" width="400"></td>
+</tr>
+</table>
 
-<img src="docs/screenshots/widget-preview.png" width="380" alt="Standalone widget preview with sample battery values">
-<img src="docs/screenshots/settings-preview.png" width="380" alt="AirPods settings in the shared native widget">
+Actual app renders with labelled sample data. The public build excludes the private prototype's Apple artwork and extracted glyphs. [View the screenshots](docs/SCREENSHOTS.md).
 
-## What's experimental
+## What it does
 
-- Hardware validation so far is limited to one Lenovo Windows 11 x64 computer and AirPods Pro 3. Other computers, Bluetooth adapters and AirPods models need testing.
-- A charging-case value is refreshed when a valid report arrives. Cached values are marked as last seen; opening a case does not justify inventing a fresh timestamp.
-- Advanced controls require the WPods service and its driver setup. On a new PC, that setup may require a user-approved restart. The widget never restarts Windows automatically.
-- The public version is being separated from a private prototype. Cross-device cache behavior, the complete installer and clean-machine recovery are release gates, not claims of completed testing.
+| Control | Behavior |
+| --- | --- |
+| Battery | Separate left, right and case readings, charging status and measurement age. Cached values stay marked as last seen. |
+| Listening modes | Transparency, Adaptive and Noise Cancellation on supported AirPods. |
+| Audio | Volume, microphone mute and automatic microphone selection. |
+| Connection | Connect or disconnect the selected AirPods from the widget. |
+| Settings | Additional controls behind the gear button, with help beside unfamiliar options. |
 
-## Build
+Advanced controls use the matching modified WPods host. Availability depends on the AirPods model and connection state.
 
-Requirements: Windows x64 and Visual Studio Build Tools with MSVC and the Windows SDK. Building the optional backend also needs .NET 10.
+The standalone widget opens from the Windows notification area. Windhawk, a taskbar replacement and Lenovo software are optional. Both hosts use the same native presentation.
+
+## Try the interface
+
+Requirements: Windows x64, Visual Studio Build Tools with MSVC and the Windows SDK.
 
 ```powershell
+git clone https://github.com/WendelinProfiler/AirPodsCompanion.git
+cd AirPodsCompanion
 ./scripts/Build-NativeWidget.ps1
 out/native-widget/AirPodsCompanion.exe --preview
 ```
 
-The default public build does not include Apple fonts, copied product images or extracted system glyphs. Its layout still uses the shared renderer. The local development preview can load separately held assets; those assets are not included in this repository or a public release.
+Preview mode uses sample data and sends no AirPods commands. Building the backend also needs .NET 10. See [development instructions](docs/DEVELOPMENT.md) for host compatibility, startup options and verification.
 
-`--preview` uses clearly labelled sample data and never sends AirPods commands. `--widget-only` reads an already running compatible local host without starting an engine or installing a driver. Normal startup looks for `engine/IslandAirPodsHost.exe` beside the widget.
+## Tested so far
 
-## One interface, two hosts
+The shared native interface has passed local navigation checks, including settings, contextual help and credits. Hardware development has been tested on one Lenovo running Windows 11 x64 with AirPods Pro 3. Other computers, adapters and AirPods models still need testing.
 
-`src/Shared/AirPodsPanel.h` owns the AirPods layout, controls, hit regions, feedback and animations. The native standalone adapter in `src/NativeWidget/` hosts that same presentation above the normal Windows taskbar. The Island build adapter includes the same header. There is no separate WinForms redesign of the widget.
+The public host needs its own end-to-end connection, mode and microphone tests. Installer rollback, uninstall, multiple monitors and clean Windows installation remain on the [release checklist](RELEASE-CHECKLIST.md). Driver setup may require a user-approved restart on a new computer; the widget never restarts Windows automatically.
 
-The stock WPods app does not publish this companion protocol; a matching modified host is required. The end-to-end installation flow is still being packaged. Do not run two AirPods controllers at once.
+Case readings refresh when a valid report arrives. Opening a case alone does not make a cached reading current.
 
-The modified WPods engine source is in `engine/`. Its native build instructions and third-party notices remain there. A public installer will package a matching host and dependencies; copying unknown DLLs from a user's machine is not the release process.
+## Contributing
 
-## Local protocol compatibility
+Useful reports include your Windows version, AirPods model, Bluetooth adapter and steps to reproduce the problem. Say whether you used preview mode or the matching modified host. Remove device addresses and account details from logs before sharing them.
 
-The local control window and state mappings retain the legacy `IslandAirPods` names for compatibility with the existing prototype. Those names refer to the AirPods host, not to an Island process. The standalone frontend does not find, launch, modify or require Windhawk.
+Start with the [release checklist](RELEASE-CHECKLIST.md) for areas that need validation. Please keep upstream copyright notices and component licenses with changes and redistributed builds.
 
-## Credits and license
+## Credits
 
-The Bluetooth work comes primarily from **WPods and its contributors**. See [CREDITS.md](CREDITS.md) for the repositories, authors, versions and what each contributed. The same credits are available from the widget's settings and tray menu.
+**WPods by FPNDev and its contributors provides the Bluetooth engine and AirPods control foundation.** This project adds the shared widget, Windows tray host and companion integration.
 
-This fork is GPL-3.0. See [LICENSE](LICENSE) and the component notices in [licenses/](licenses/). Apple fonts and the private prototype's original Apple glyphs are not included in the public package or covered by the GPL.
+Other contributions include [usbip-win2](https://github.com/vadimgrn/usbip-win2), protocol documentation from [stuffz/airpods](https://github.com/stuffz/airpods), and presentation references from [AirPodsDesktop](https://github.com/SpriteOvO/AirPodsDesktop) and [Mac Island & Dock](https://windhawk.net/mods/mac-island-dock).
+
+[Full credits](CREDITS.md) explain what each project contributed. Required dependency notices remain in [licenses/](licenses/).
+
+## License
+
+[GPL-3.0](LICENSE), with component-specific notices. AirPods and Apple are trademarks of Apple Inc. This is an independent experimental project.
