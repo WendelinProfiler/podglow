@@ -15,15 +15,15 @@
 
 [Setup]
 AppId={{EB653D78-A99D-4E7D-A72C-D766C6F38C85}
-AppName=AirPods Companion
+AppName=Podglow
 AppVersion={#AppVersion}
 AppPublisher=WendelinProfiler; Bluetooth engine by WPods contributors
 AppCopyright=Copyright (C) 2026 fpndev (rimjoeh) <rimjoeh@gmail.com>
 LicenseFile=..\LICENSE
 InfoBeforeFile=ALPHA.txt
 VersionInfoVersion={#AppVersion}
-UninstallDisplayName=AirPods Companion
-UninstallDisplayIcon={app}\AirPodsCompanion.exe
+UninstallDisplayName=Podglow
+UninstallDisplayIcon={app}\Podglow.exe
 DefaultDirName={autopf}\AirPods Companion
 DisableProgramGroupPage=yes
 DisableDirPage=yes
@@ -38,18 +38,22 @@ SolidCompression=yes
 ; Restart Manager closes only the app and never restarts it (it would run elevated). The service keeps running
 ; through the copy (see MoveServiceFilesAside); stopped by Restart Manager, it would leave the adapter on WinUSB.
 CloseApplications=yes
-CloseApplicationsFilter=AirPodsCompanion.exe,IslandAirPodsHost.exe
+CloseApplicationsFilter=Podglow.exe,AirPodsCompanion.exe,IslandAirPodsHost.exe
 RestartApplications=no
 RestartIfNeededByRun=no
 SetupLogging=yes
 OutputDir=..\out\release
-OutputBaseFilename=AirPodsCompanion-Setup
+OutputBaseFilename=Podglow-Setup
 
 [Tasks]
 Name: desktopicon; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: startup; Description: "Start AirPods Companion when I sign in"; Flags: unchecked
+Name: startup; Description: "Start Podglow when I sign in"; Flags: unchecked
 
 [InstallDelete]
+; Remove only this product's legacy frontend and shortcuts during the rename.
+Type: files; Name: "{app}\AirPodsCompanion.exe"
+Type: files; Name: "{autoprograms}\AirPods Companion.lnk"
+Type: files; Name: "{autodesktop}\AirPods Companion.lnk"
 ; Service files the previous update moved aside while the service used them (see MoveServiceFilesAside).
 Type: files; Name: "{app}\*.old-*"
 ; Left by an older service version that rotated its log; nothing writes it any more.
@@ -70,12 +74,12 @@ Type: files; Name: "{app}\drivers\installed.txt"
 Type: filesandordirs; Name: "{commonappdata}\WPods\updates"
 
 [Icons]
-Name: "{autoprograms}\AirPods Companion"; Filename: "{app}\AirPodsCompanion.exe"
-Name: "{autodesktop}\AirPods Companion"; Filename: "{app}\AirPodsCompanion.exe"; Tasks: desktopicon
+Name: "{autoprograms}\Podglow"; Filename: "{app}\Podglow.exe"
+Name: "{autodesktop}\Podglow"; Filename: "{app}\Podglow.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\AirPodsCompanion.exe"; Parameters: "--register-startup"; Tasks: startup; Flags: runasoriginaluser waituntilterminated
-Filename: "{app}\AirPodsCompanion.exe"; Description: "Open AirPods Companion"; Flags: postinstall runasoriginaluser nowait skipifsilent
+Filename: "{app}\Podglow.exe"; Parameters: "--register-startup"; Tasks: startup; Flags: runasoriginaluser waituntilterminated
+Filename: "{app}\Podglow.exe"; Description: "Open Podglow"; Flags: postinstall runasoriginaluser nowait skipifsilent
 
 [UninstallRun]
 ; Runs before the service and usbip-win2 are removed (usPostUninstall); the RunOnceId matches the
@@ -518,8 +522,10 @@ procedure StopWPods;
 var
   Code: Integer;
 begin
-  Exec(PowerShell, '-NoProfile -NonInteractive -Command "Get-Process WPods -ErrorAction Ignore | ' +
-    'Where-Object Path -eq ' + PSString(ExpandConstant('{app}\IslandAirPodsHost.exe')) + ' | ' +
+  Exec(PowerShell, '-NoProfile -NonInteractive -Command "Get-Process -Name IslandAirPodsHost,AirPodsCompanion,Podglow -ErrorAction Ignore | ' +
+    'Where-Object { $_.Path -eq ' + PSString(ExpandConstant('{app}\IslandAirPodsHost.exe')) +
+    ' -or $_.Path -eq ' + PSString(ExpandConstant('{app}\Podglow.exe')) +
+    ' -or $_.Path -eq ' + PSString(ExpandConstant('{app}\AirPodsCompanion.exe')) + ' } | ' +
     'ForEach-Object { $_.Kill(); $_.WaitForExit(10000) | Out-Null }"', '', SW_HIDE, ewWaitUntilTerminated, Code);
 end;
 
@@ -560,10 +566,10 @@ begin
     Params := '--install --no-start';
   if not ExecAndLogOutput(ExpandConstant('{app}\WPods.Service.exe'), Params, '', SW_HIDE, ewWaitUntilTerminated,
     Code, nil) then
-    SuppressibleMsgBox('AirPods Companion was installed, but Setup could not start setting up its background service: ' +
+    SuppressibleMsgBox('Podglow was installed, but Setup could not start setting up its background service: ' +
       SysErrorMessage(Code) + #13#10#13#10 + 'Run Setup again to retry.', mbError, MB_OK, IDOK)
   else if Code <> 0 then
-    SuppressibleMsgBox(Format('AirPods Companion was installed, but its background service could not be set up (error %d). ' +
+    SuppressibleMsgBox(Format('Podglow was installed, but its background service could not be set up (error %d). ' +
       'WPods cannot connect to your AirPods until it is.' + #13#10#13#10 +
       'Run Setup again to retry. Details are in the setup log:' + #13#10 + '%s', [Code, ExpandConstant('{log}')]),
       mbError, MB_OK, IDOK);
@@ -695,7 +701,7 @@ var
 begin
   if CurUninstallStep = usUninstall then begin
     RegDeleteValue(HKCU, RunKey, 'AirPodsCompanion');
-    RemoveSettings := SuppressibleMsgBox('Also remove your AirPods Companion and host settings?', mbConfirmation, MB_YESNO or MB_DEFBUTTON2,
+    RemoveSettings := SuppressibleMsgBox('Also remove your Podglow and host settings?', mbConfirmation, MB_YESNO or MB_DEFBUTTON2,
       IDNO) = IDYES;
     StopWPods;
     LogBluetoothDevices('uninstall: before');

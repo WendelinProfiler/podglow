@@ -34,7 +34,7 @@ class Panel {
  winrt::com_ptr<ID2D1DCRenderTarget> m_target;
  winrt::com_ptr<IDWriteFactory> m_dwrite;
  HDC m_dc=nullptr;HBITMAP m_bitmap=nullptr;HGDIOBJ m_oldBitmap=nullptr;SIZE m_surface{};
- HWND m_backdrop=nullptr;bool m_visible=false,m_tracking=false,m_blur=false,m_dirty=true;
+ HWND m_backdrop=nullptr;bool m_visible=false,m_tracking=false,m_blur=false,m_dirty=true,m_updateAvailable=false;
  float m_width=0,m_height=0,m_opacity=0;int m_scroll=0;ULONGLONG m_lastFrame=0;
  NOTIFYICONDATAW m_tray{};UINT m_taskbarCreated=0;
 protected:
@@ -74,20 +74,31 @@ private:
  }
  void UpdateTray(){
   AirPodsIslandState s{};bool connected=ReadAirPodsIslandState(s)&&AirPodsIslandFresh(s,GetTickCount64())&&s.connected;
-  auto tip=std::wstring(L"AirPods Companion\n")+(connected?L"Connected":L"Not connected");
+  auto tip=std::wstring(L"Podglow\n")+(connected?L"Connected":L"Not connected")+(m_updateAvailable?L"\nUpdate available":L"");
   wcsncpy_s(m_tray.szTip,tip.c_str(),_TRUNCATE);Shell_NotifyIconW(NIM_MODIFY,&m_tray);
  }
- void AddTray(){m_tray={sizeof(m_tray)};m_tray.hWnd=m_hwnd;m_tray.uID=1;m_tray.uFlags=NIF_ICON|NIF_MESSAGE|NIF_TIP;m_tray.uCallbackMessage=TrayCallback;m_tray.hIcon=LoadIconW(nullptr,IDI_APPLICATION);wcscpy_s(m_tray.szTip,L"AirPods Companion");Shell_NotifyIconW(NIM_ADD,&m_tray);m_tray.uVersion=NOTIFYICON_VERSION_4;Shell_NotifyIconW(NIM_SETVERSION,&m_tray);}
+ void AddTray(){m_tray={sizeof(m_tray)};m_tray.hWnd=m_hwnd;m_tray.uID=1;m_tray.uFlags=NIF_ICON|NIF_MESSAGE|NIF_TIP;m_tray.uCallbackMessage=TrayCallback;m_tray.hIcon=LoadIconW(nullptr,IDI_APPLICATION);wcscpy_s(m_tray.szTip,L"Podglow");Shell_NotifyIconW(NIM_ADD,&m_tray);m_tray.uVersion=NOTIFYICON_VERSION_4;Shell_NotifyIconW(NIM_SETVERSION,&m_tray);}
  void Credits(){
   std::ifstream input(g_directory+L"\\CREDITS.md",std::ios::binary);std::string utf8((std::istreambuf_iterator<char>(input)),{});
   if(utf8.empty())utf8="Credits and license information is available in CREDITS.md beside the application.";
   int n=MultiByteToWideChar(CP_UTF8,0,utf8.data(),static_cast<int>(utf8.size()),nullptr,0);std::wstring text(n,L' ');MultiByteToWideChar(CP_UTF8,0,utf8.data(),static_cast<int>(utf8.size()),text.data(),n);
   std::wstring normalized;for(size_t i=0;i<text.size();i++){if(text[i]==L'\n'&&(i==0||text[i-1]!=L'\r'))normalized+=L'\r';normalized+=text[i];}text=std::move(normalized);
-  auto h=CreateWindowExW(WS_EX_TOOLWINDOW,L"AirPodsCompanionCredits",L"AirPods Companion — Credits & licenses",WS_OVERLAPPEDWINDOW|WS_VISIBLE,CW_USEDEFAULT,CW_USEDEFAULT,800,650,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
+  auto h=CreateWindowExW(WS_EX_TOOLWINDOW,L"AirPodsCompanionCredits",L"Podglow — Credits & licenses",WS_OVERLAPPEDWINDOW|WS_VISIBLE,CW_USEDEFAULT,CW_USEDEFAULT,800,650,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
   auto edit=CreateWindowExW(0,L"EDIT",text.c_str(),WS_CHILD|WS_VISIBLE|WS_VSCROLL|ES_MULTILINE|ES_READONLY|ES_AUTOVSCROLL,0,0,780,610,h,nullptr,GetModuleHandleW(nullptr),nullptr);
   SendMessageW(edit,WM_SETFONT,reinterpret_cast<WPARAM>(GetStockObject(DEFAULT_GUI_FONT)),TRUE);SetWindowLongPtrW(h,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(edit));SetForegroundWindow(h);
  }
- void Menu(){POINT p{};GetCursorPos(&p);auto menu=CreatePopupMenu();AppendMenuW(menu,MF_STRING,1,L"Open widget");AppendMenuW(menu,MF_STRING,2,L"Credits & licenses");AppendMenuW(menu,MF_SEPARATOR,0,nullptr);AppendMenuW(menu,MF_STRING,3,L"Exit");SetForegroundWindow(m_hwnd);int selected=TrackPopupMenu(menu,TPM_RETURNCMD|TPM_RIGHTBUTTON,p.x,p.y,0,m_hwnd,nullptr);DestroyMenu(menu);if(selected==1)Open();else if(selected==2)Credits();else if(selected==3)DestroyWindow(m_hwnd);}
+ bool AutomaticUpdates(){DWORD value=1,bytes=sizeof(value);RegGetValueW(HKEY_CURRENT_USER,L"Software\\AirPodsCompanion",L"CheckForUpdates",RRF_RT_REG_DWORD,nullptr,&value,&bytes);return value!=0;}
+ void LaunchUpdater(bool background){
+  if(g_preview)return;
+  auto host=g_directory+L"\\IslandAirPodsHost.exe";if(GetFileAttributesW(host.c_str())==INVALID_FILE_ATTRIBUTES)host=g_directory+L"\\engine\\IslandAirPodsHost.exe";
+  if(GetFileAttributesW(host.c_str())==INVALID_FILE_ATTRIBUTES){if(!background)MessageBoxW(m_hwnd,L"Install the complete companion package to check for updates.",L"Podglow",MB_OK|MB_ICONINFORMATION);return;}
+  auto result=reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr,L"open",host.c_str(),background?L"--companion-update --background":L"--companion-update",g_directory.c_str(),background?SW_HIDE:SW_SHOWNORMAL));
+  if(result<=32&&!background)MessageBoxW(m_hwnd,L"The update assistant could not start. Please try again.",L"Podglow",MB_OK|MB_ICONINFORMATION);
+ }
+ void UpdateNotice(){
+  if(g_preview)return;m_updateAvailable=true;m_tray.uFlags=NIF_INFO;wcscpy_s(m_tray.szInfoTitle,L"Podglow update");wcscpy_s(m_tray.szInfo,L"A new version is available. Click to review and install it.");m_tray.dwInfoFlags=NIIF_INFO;Shell_NotifyIconW(NIM_MODIFY,&m_tray);m_tray.uFlags=NIF_ICON|NIF_MESSAGE|NIF_TIP;UpdateTray();
+ }
+ void Menu(){POINT p{};GetCursorPos(&p);auto menu=CreatePopupMenu();AppendMenuW(menu,MF_STRING,1,L"Open widget");AppendMenuW(menu,MF_STRING|(g_preview?MF_GRAYED:0),4,m_updateAvailable?L"Update available...":L"Check for updates...");AppendMenuW(menu,MF_STRING|(AutomaticUpdates()?MF_CHECKED:0)|(g_preview?MF_GRAYED:0),5,L"Check for updates automatically");AppendMenuW(menu,MF_STRING,2,L"Credits & licenses");AppendMenuW(menu,MF_SEPARATOR,0,nullptr);AppendMenuW(menu,MF_STRING,3,L"Exit");SetForegroundWindow(m_hwnd);int selected=TrackPopupMenu(menu,TPM_RETURNCMD|TPM_RIGHTBUTTON,p.x,p.y,0,m_hwnd,nullptr);DestroyMenu(menu);if(selected==1)Open();else if(selected==2)Credits();else if(selected==3)DestroyWindow(m_hwnd);else if(selected==4)LaunchUpdater(false);else if(selected==5){DWORD value=AutomaticUpdates()?0:1;HKEY key=nullptr;if(RegCreateKeyExW(HKEY_CURRENT_USER,L"Software\\AirPodsCompanion",0,nullptr,0,KEY_SET_VALUE,nullptr,&key,nullptr)==ERROR_SUCCESS){RegSetValueExW(key,L"CheckForUpdates",0,REG_DWORD,reinterpret_cast<BYTE*>(&value),sizeof(value));RegCloseKey(key);if(value&&!g_preview)SetTimer(m_hwnd,2,1000,nullptr);}}}
  void Render(double dt){
   if(!m_visible)return;bool changed=AnimateContents(dt);
   BOOL motion=TRUE;SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION,0,&motion,0);
@@ -122,7 +133,7 @@ private:
   if(msg==m_taskbarCreated){AddTray();return 0;}
   POINT p{GET_X_LPARAM(l)-m_contentOffset.x,GET_Y_LPARAM(l)-m_contentOffset.y};
   switch(msg){
-   case WM_TIMER:{ULONGLONG now=GetTickCount64();double dt=m_lastFrame?std::clamp((now-m_lastFrame)/1000.0,.001,.05):.016;m_lastFrame=now;Render(dt);if(now/1500!=(now-static_cast<ULONGLONG>(dt*1000))/1500)UpdateTray();return 0;}
+   case WM_TIMER:{if(w==2){SetTimer(m_hwnd,2,3600000,nullptr);if(!g_preview&&AutomaticUpdates())LaunchUpdater(true);return 0;}ULONGLONG now=GetTickCount64();double dt=m_lastFrame?std::clamp((now-m_lastFrame)/1000.0,.001,.05):.016;m_lastFrame=now;Render(dt);if(now/1500!=(now-static_cast<ULONGLONG>(dt*1000))/1500)UpdateTray();return 0;}
    case WM_MOUSEMOVE:if(!m_tracking){TRACKMOUSEEVENT t{sizeof(t),TME_LEAVE,m_hwnd,0};TrackMouseEvent(&t);m_tracking=true;}m_dirty=OnMouseMove(p)||m_dirty;return 0;
    case WM_MOUSELEAVE:m_tracking=false;m_dirty=OnMouseLeave()||m_dirty;return 0;
    case WM_LBUTTONDOWN:m_dirty=true;OnMouseDown(p);return 0;
@@ -139,7 +150,9 @@ private:
    case WM_APP+193:Toggle();return 0;
    case WM_APP+194:Credits();return 0;
    case WM_APP+195:DestroyWindow(m_hwnd);return 0;
-   case TrayCallback:if(LOWORD(l)==NIN_SELECT||LOWORD(l)==NIN_KEYSELECT)Toggle();else if(LOWORD(l)==WM_CONTEXTMENU)Menu();return 0;
+   case WM_APP+196:UpdateNotice();return 0;
+   case WM_APP+197:m_updateAvailable=false;UpdateTray();return 0;
+   case TrayCallback:if(LOWORD(l)==NIN_SELECT||LOWORD(l)==NIN_KEYSELECT)Toggle();else if(LOWORD(l)==WM_CONTEXTMENU)Menu();else if(LOWORD(l)==NIN_BALLOONUSERCLICK)LaunchUpdater(false);return 0;
   }return DefWindowProcW(m_hwnd,msg,w,l);
  }
 public:
@@ -148,9 +161,9 @@ public:
   auto instance=GetModuleHandleW(nullptr);WNDCLASSW wc{};wc.hInstance=instance;wc.lpfnWndProc=BackdropProc;wc.lpszClassName=L"AirPodsCompanionBackdrop";RegisterClassW(&wc);
   wc.lpszClassName=L"AirPodsCompanionCredits";wc.lpfnWndProc=[](HWND h,UINT m,WPARAM w,LPARAM l)->LRESULT{if(m==WM_SIZE){auto edit=reinterpret_cast<HWND>(GetWindowLongPtrW(h,GWLP_USERDATA));if(edit)MoveWindow(edit,0,0,LOWORD(l),HIWORD(l),TRUE);return 0;}return DefWindowProcW(h,m,w,l);};RegisterClassW(&wc);
   wc.lpszClassName=L"AirPodsCompanionWidget";wc.lpfnWndProc=WindowProc;wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);RegisterClassW(&wc);
-  m_backdrop=CreateWindowExW(WS_EX_TOOLWINDOW|WS_EX_NOACTIVATE|WS_EX_TRANSPARENT,L"AirPodsCompanionBackdrop",L"AirPods Companion backdrop",WS_POPUP,0,0,1,1,nullptr,nullptr,instance,nullptr);
-  m_hwnd=CreateWindowExW(WS_EX_LAYERED|WS_EX_TOOLWINDOW,L"AirPodsCompanionWidget",L"AirPods Companion",WS_POPUP,0,0,1,1,m_backdrop,nullptr,instance,this);
-  if(!m_hwnd||!m_backdrop)return false;ConfigureBackdrop();m_taskbarCreated=RegisterWindowMessageW(L"TaskbarCreated");AddTray();SetTimer(m_hwnd,1,16,nullptr);return true;
+  m_backdrop=CreateWindowExW(WS_EX_TOOLWINDOW|WS_EX_NOACTIVATE|WS_EX_TRANSPARENT,L"AirPodsCompanionBackdrop",L"Podglow backdrop",WS_POPUP,0,0,1,1,nullptr,nullptr,instance,nullptr);
+  m_hwnd=CreateWindowExW(WS_EX_LAYERED|WS_EX_TOOLWINDOW,L"AirPodsCompanionWidget",L"Podglow",WS_POPUP,0,0,1,1,m_backdrop,nullptr,instance,this);
+  if(!m_hwnd||!m_backdrop)return false;ConfigureBackdrop();m_taskbarCreated=RegisterWindowMessageW(L"TaskbarCreated");AddTray();SetTimer(m_hwnd,1,16,nullptr);if(!g_preview)SetTimer(m_hwnd,2,15000,nullptr);return true;
  }
  void Open(){
   HMONITOR monitor=MonitorFromPoint(POINT{GetSystemMetrics(SM_CXSCREEN)-1,GetSystemMetrics(SM_CYSCREEN)-1},MONITOR_DEFAULTTOPRIMARY);
@@ -164,14 +177,14 @@ public:
 
 static bool ReadCompanionState(AirPodsIslandState& s){
  if(!g_preview)return ReadAirPodsIslandState(s);
- s={};s.sequence=2;s.tick=GetTickCount64();s.connected=1;s.backend=2;s.caps=0x7ff;s.left=78;s.right=76;s.caseBattery=42;s.charging=4;s.earLeft=s.earRight=0;s.mode=2;s.conversation=0;s.personalized=0;s.earDetection=1;s.autoMic=1;s.micMuted=0;s.volume=40;s.isOutput=1;s.reserved=1|(1<<3)|(51<<6);wcscpy_s(s.name,L"AirPods Companion — Preview");return true;
+ s={};s.sequence=2;s.tick=GetTickCount64();s.connected=1;s.backend=2;s.caps=0x7ff;s.left=78;s.right=76;s.caseBattery=42;s.charging=4;s.earLeft=s.earRight=0;s.mode=2;s.conversation=0;s.personalized=0;s.earDetection=1;s.autoMic=1;s.micMuted=0;s.volume=40;s.isOutput=1;s.reserved=1|(1<<3)|(51<<6);wcscpy_s(s.name,L"Podglow — Preview");return true;
 }
 static bool ReadCompanionUx(AirPodsUxState& s){if(!g_preview)return ReadAirPodsUxState(s);s={};s.sequence=2;s.tick=GetTickCount64();s.leftSeen=s.rightSeen=s.caseSeen=AirPodsUnixMs();s.confirmedMode=2;return true;}
 static void CompanionCommand(int command,int value){if(g_preview)return;if(auto h=FindWindowW(nullptr,L"Island AirPods Control"))PostMessageW(h,WM_APP+2,command,value);}
 static std::wstring CompanionText(const std::wstring& s);
 static std::wstring CompanionAssetFile(){return g_directory+L"\\assets\\AirPods-Pro-3.png";}
 #define AIRPODS_TEXT(value) CompanionText(value)
-#define AIRPODS_WINDOW_TITLE (g_preview?L"AirPods Companion — Preview":L"AirPods Companion")
+#define AIRPODS_WINDOW_TITLE (g_preview?L"Podglow — Preview":L"Podglow")
 #define AIRPODS_HEADER_TITLE L"AirPods"
 #define AIRPODS_SEND_COMMAND(command,value) CompanionCommand(command,value)
 #define AIRPODS_ASSET_FILE CompanionAssetFile()
@@ -208,11 +221,11 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int){
  WCHAR file[32768]{};GetModuleFileNameW(nullptr,file,32768);g_directory=file;g_directory.resize(g_directory.find_last_of(L"\\/"));g_preview=wcsstr(GetCommandLineW(),L"--preview")!=nullptr;
  if(wcsstr(GetCommandLineW(),L"--register-startup")){
   HKEY key=nullptr;if(RegCreateKeyExW(HKEY_CURRENT_USER,L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",0,nullptr,0,KEY_SET_VALUE,nullptr,&key,nullptr)!=ERROR_SUCCESS)return 1;
-  std::wstring value=L"\""+g_directory+L"\\AirPodsCompanion.exe\" --startup";
+  std::wstring value=L"\""+g_directory+L"\\Podglow.exe\" --startup";
   auto result=RegSetValueExW(key,L"AirPodsCompanion",0,REG_SZ,reinterpret_cast<const BYTE*>(value.c_str()),static_cast<DWORD>((value.size()+1)*sizeof(wchar_t)));RegCloseKey(key);return result==ERROR_SUCCESS?0:1;
  }
  HANDLE mutex=CreateMutexW(nullptr,TRUE,g_preview?L"Local\\AirPodsCompanion.Native.Preview":L"Local\\AirPodsCompanion.Native");if(GetLastError()==ERROR_ALREADY_EXISTS){if(auto h=FindWindowW(L"AirPodsCompanionWidget",nullptr))PostMessageW(h,WM_APP+193,0,0);CloseHandle(mutex);return 0;}
- AirPodsPanel panel;if(!panel.Create()){MessageBoxW(nullptr,L"The widget could not create its Windows graphics surface.",L"AirPods Companion",MB_ICONERROR);return 1;}
+ AirPodsPanel panel;if(!panel.Create()){MessageBoxW(nullptr,L"The widget could not create its Windows graphics surface.",L"Podglow",MB_ICONERROR);return 1;}
  if(!g_preview&&!wcsstr(GetCommandLineW(),L"--widget-only")&&!FindWindowW(nullptr,L"Island AirPods Control")){
   auto engine=g_directory+L"\\engine\\IslandAirPodsHost.exe";if(GetFileAttributesW(engine.c_str())==INVALID_FILE_ATTRIBUTES)engine=g_directory+L"\\IslandAirPodsHost.exe";if(GetFileAttributesW(engine.c_str())!=INVALID_FILE_ATTRIBUTES){
    std::wstring arguments=L"\""+engine+L"\" --startup";STARTUPINFOW startup{sizeof(startup)};startup.dwFlags=STARTF_USESHOWWINDOW;startup.wShowWindow=SW_HIDE;PROCESS_INFORMATION process{};

@@ -1,6 +1,6 @@
 ﻿# Credits
 
-AirPods Companion is an experimental companion UI built on other people's work. The Bluetooth engine is a modified WPods build, not a new Bluetooth driver written by this project.
+Podglow is an experimental companion UI built on other people's work. The Bluetooth engine is a modified WPods build, not a new Bluetooth driver written by this project.
 
 | Project | Authors | What we use | License / source |
 | --- | --- | --- | --- |
@@ -29,4 +29,4 @@ The original SF Symbols outlines used in the owner's local Island prototype are 
 
 ## Changes in this fork
 
-The companion adds one shared native presentation with a standalone Windows tray adapter and an optional Island adapter, an optional bounded local state/control bridge, automatic Windows microphone routing, per-component battery timestamps and caching, and an independent charging-case decoder. Modified engine files remain under WPods' GPL-3.0 license. Original copyright notices are retained.
+The companion adds one shared native presentation with a standalone Windows tray adapter and an optional Island adapter, an optional bounded local state/control bridge, automatic Windows microphone routing, per-component battery timestamps and caching, an independent charging-case decoder, and a user-approved updater for this repository. Modified engine files remain under WPods' GPL-3.0 license. Original copyright notices are retained.

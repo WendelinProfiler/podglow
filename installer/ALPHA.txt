@@ -1,4 +1,4 @@
-AirPods Companion: experimental alpha
+Podglow: experimental alpha
 
 This package has not been tested on clean Windows or different hardware. Installation, removal and recovery are unverified. Keep a touchpad or wired keyboard available.
 

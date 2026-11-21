@@ -1,4 +1,4 @@
-﻿param([string]$Exe=(Join-Path $PSScriptRoot '../out/native-widget/AirPodsCompanion.exe'))
+﻿param([string]$Exe=(Join-Path $PSScriptRoot '../out/native-widget/Podglow.exe'))
 $ErrorActionPreference='Stop'
 Add-Type @'
 using System;using System.Runtime.InteropServices;using System.IO.MemoryMappedFiles;
@@ -30,7 +30,7 @@ function State { [pscustomobject]@{connected=$true} }
 function Wait-State($property,$value){for($i=0;$i -lt 75;$i++){Start-Sleep -Milliseconds 150;if((State).$property -eq $value){Start-Sleep -Milliseconds 350;return}};throw "State $property did not become $value"}
 $process=Start-Process -FilePath ([IO.Path]::GetFullPath($Exe)) -ArgumentList '--preview' -PassThru
 Start-Sleep -Milliseconds 900
-$island=[CompactAirPodsTest]::FindWindow('AirPodsCompanionWidget','AirPods Companion — Preview')
+$island=[CompactAirPodsTest]::FindWindow('AirPodsCompanionWidget','Podglow — Preview')
 if($island -eq [IntPtr]::Zero){throw 'Native standalone widget missing'}
 $panel=$island
 function Page-Check($page,$height){Start-Sleep -Milliseconds 1300;if([CompactAirPodsTest]::GetProp($panel,'AirPodsPage').ToInt64() -ne $page){throw ('Wrong widget page: wanted='+$page+' actual='+[CompactAirPodsTest]::GetProp($panel,'AirPodsPage').ToInt64()+' visible='+[CompactAirPodsTest]::IsWindowVisible($panel)+' height='+[CompactAirPodsTest]::GetProp($panel,'AirPodsContentHeight').ToInt64())};if([CompactAirPodsTest]::GetProp($panel,'AirPodsContentHeight').ToInt64() -ne $height){throw 'Wrong content height'}}
@@ -52,7 +52,7 @@ try{
  Click 318 32;Page-Check 1 738;Click 160 477;Page-Check 1 538;Click 318 32;Page-Check 0 454
  'PASS shared native renderer: main/settings/help/expand/collapse/back navigation'
  [CompactAirPodsTest]::PostMessage($panel,0x80c2,[IntPtr]::Zero,[IntPtr]::Zero)|Out-Null;Start-Sleep -Milliseconds 300
- $credits=[CompactAirPodsTest]::FindTitle([IntPtr]::Zero,'AirPods Companion — Credits & licenses');if($credits -eq [IntPtr]::Zero){throw 'Native credits window missing'}
+ $credits=[CompactAirPodsTest]::FindTitle([IntPtr]::Zero,'Podglow — Credits & licenses');if($credits -eq [IntPtr]::Zero){throw 'Native credits window missing'}
  [CompactAirPodsTest]::PostMessage($credits,0x10,[IntPtr]::Zero,[IntPtr]::Zero)|Out-Null
  'PASS credits reachable from standalone adapter; no Bluetooth writes or screen recording'
 }finally{[CompactAirPodsTest]::PostMessage($panel,0x80c3,[IntPtr]::Zero,[IntPtr]::Zero)|Out-Null;if(!$process.WaitForExit(3000)){$process.Kill()}}

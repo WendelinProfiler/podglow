@@ -1,12 +1,12 @@
 param([Parameter(Mandatory)][string]$Payload)
 $ErrorActionPreference='Stop'
 $privateRoot=[regex]::Escape([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')))
-foreach($name in @('AirPodsCompanion.exe','IslandAirPodsHost.exe','WPods.Service.exe','AirPodsAudio.dll','wpods_native.dll','hostfxr.dll','coreclr.dll','System.Windows.Forms.dll','locales/en-US.json','LICENSE','CREDITS.md','THIRD-PARTY-NOTICES.txt','licenses/WPods-THIRD-PARTY-NOTICES.txt')){
+foreach($name in @('companion-release.json','Podglow.exe','IslandAirPodsHost.exe','WPods.Service.exe','AirPodsAudio.dll','wpods_native.dll','hostfxr.dll','coreclr.dll','System.Windows.Forms.dll','locales/en-US.json','LICENSE','CREDITS.md','THIRD-PARTY-NOTICES.txt','licenses/WPods-THIRD-PARTY-NOTICES.txt')){
  if(!(Test-Path -LiteralPath (Join-Path $Payload $name))){throw "Missing runtime file: $name"}
 }
 $files=Get-ChildItem -LiteralPath $Payload -Recurse -File
 foreach($file in $files){
- if($file.Name -match '(?i)(\.pfx$|\.p12$|\.key$|\.pdb$|\.log$|^settings\.ini$|^status\.json$|battery-cache|evidence\.json|LocalGlyphs|AirPodsOriginalGlyphs)'){throw "Private or build-only file in payload: $($file.Name)"}
+ if($file.Name -match '(?i)(\.pfx$|\.p12$|\.key$|\.pdb$|\.log$|^settings\.ini$|^status\.json$|^update-inspection\.json$|battery-cache|evidence\.json|LocalGlyphs|AirPodsOriginalGlyphs)'){throw "Private or build-only file in payload: $($file.Name)"}
  $bytes=[IO.File]::ReadAllBytes($file.FullName)
  foreach($encoding in @([Text.Encoding]::UTF8,[Text.Encoding]::Unicode)){
   $text=$encoding.GetString($bytes)

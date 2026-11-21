@@ -1,10 +1,13 @@
 param(
- [string]$Version='0.1.0',
+ [string]$Version='0.1.1',
+ [string]$ReleaseTag,
  [string]$DotNet='dotnet',
  [Parameter(Mandatory)][string]$InnoUnpacker,
  [Parameter(Mandatory)][string]$InnoCompiler
 )
 $ErrorActionPreference='Stop'
+if(!$ReleaseTag){$ReleaseTag="v$Version-alpha.1"}
+if($ReleaseTag -notmatch ('^v'+[regex]::Escape($Version)+'(?:-[0-9A-Za-z.-]+)?$')){throw 'ReleaseTag must match the packaged version.'}
 $root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $output=Join-Path $root 'out'
 $deps=Join-Path $output 'deps'
@@ -30,13 +33,16 @@ Copy-Item -LiteralPath (Join-Path $original 'web') -Destination (Join-Path $root
 $payload=Join-Path $output ("release-$Version/payload")
 if((Test-Path $payload) -and @(Get-ChildItem -LiteralPath $payload -Force).Count -gt 0){throw 'Release payload already exists. Use a new version or move the old build aside before rebuilding.'}
 New-Item -ItemType Directory -Force $payload | Out-Null
+@{Version=$ReleaseTag} | ConvertTo-Json | Set-Content (Join-Path $payload 'companion-release.json') -Encoding utf8
 foreach($project in @('WPods','WPods.Service')){
  & $DotNet publish (Join-Path $root "engine/src/$project/$project.csproj") -c Release -r win-x64 --self-contained true -o $payload "-p:Version=$Version" '-p:DebugType=None' '-p:DebugSymbols=false' '-p:PublishReadyToRun=false' "-p:PathMap=$root=/_/source" '-p:ContinuousIntegrationBuild=true'
  if($LASTEXITCODE){throw "$project publish failed."}
 }
-Copy-Item -LiteralPath (Join-Path $output 'native-widget/AirPodsCompanion.exe') -Destination $payload
+Copy-Item -LiteralPath (Join-Path $output 'native-widget/Podglow.exe') -Destination $payload
 Copy-Item -LiteralPath (Join-Path $output 'engine/AirPodsAudio.dll') -Destination $payload
-foreach($name in @('LICENSE','CREDITS.md','RELEASE-NOTES.md')){Copy-Item -LiteralPath (Join-Path $root $name) -Destination $payload}
+foreach($name in @('LICENSE','CREDITS.md','RELEASE-NOTES.md','RELEASE-CHECKLIST.md')){Copy-Item -LiteralPath (Join-Path $root $name) -Destination $payload}
+New-Item -ItemType Directory -Force (Join-Path $payload 'docs') | Out-Null
+Copy-Item -LiteralPath (Join-Path $root 'docs/UPDATES.md') -Destination (Join-Path $payload 'docs/UPDATES.md')
 Copy-Item -LiteralPath (Join-Path $root 'licenses') -Destination $payload -Recurse
 New-Item -ItemType Directory -Force (Join-Path $payload 'drivers') | Out-Null
 Copy-Item -LiteralPath (Join-Path $root 'engine/installer/drivers.ps1') -Destination (Join-Path $payload 'drivers/drivers.ps1')
@@ -50,5 +56,5 @@ $manifest=Get-ChildItem $payload -File -Recurse | Sort-Object FullName | ForEach
  [ordered]@{Path=[IO.Path]::GetRelativePath($payload,$_.FullName).Replace('\','/');Bytes=$_.Length;SHA256=(Get-FileHash $_.FullName).Hash.ToLowerInvariant()}
 }
 $manifest | ConvertTo-Json -Depth 3 | Set-Content (Join-Path (Split-Path $payload) 'payload-manifest.json') -Encoding utf8
-Get-FileHash (Join-Path (Split-Path $payload) 'AirPodsCompanion-Setup.exe') | ForEach-Object { $_.Hash.ToLowerInvariant()+'  AirPodsCompanion-Setup.exe' } | Set-Content (Join-Path (Split-Path $payload) 'SHA256SUMS.txt') -Encoding ascii
+Get-FileHash (Join-Path (Split-Path $payload) 'Podglow-Setup.exe') | ForEach-Object { $_.Hash.ToLowerInvariant()+'  Podglow-Setup.exe' } | Set-Content (Join-Path (Split-Path $payload) 'SHA256SUMS.txt') -Encoding ascii
 'Experimental installer built. It has not been installed or tested on clean Windows.'

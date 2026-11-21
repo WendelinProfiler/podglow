@@ -1,6 +1,6 @@
 # Experimental alpha checklist
 
-## Prepared for 0.1.0-alpha.1
+## Prepared for 0.1.1-alpha.1
 
 - [x] Preserve complete modified WPods source and required third-party notices.
 - [x] Provide one shared native interface for the Windows tray and optional Island host.
@@ -13,6 +13,9 @@
 - [x] Implement per-pair battery-cache storage with address checks and selection resets.
 - [x] Check the staged runtime for required files, developer artifacts, private build paths and credential patterns.
 - [x] Include labelled preview screenshots, credits and experimental release notes.
+- [x] Add a user-approved updater for this repository, with an opt-out for background checks.
+- [x] Check version selection, download validation, cancellation and file locking with synthetic data; verify a real GitHub download without running it.
+- [x] Check the updater window layout at 200% scaling and retain the existing installation identity under the Podglow name.
 
 ## Not verified by this release
 
@@ -20,6 +23,7 @@ These checks were deferred at the owner's request. Implementation or compilation
 
 - [ ] Install, repair, uninstall and recover on clean Windows.
 - [ ] Verify actual rollback after interrupted installation or prerequisite failure.
+- [ ] Verify a complete installed upgrade, including the 0.1.0 to Podglow rename and administrator handoff.
 - [ ] Verify packaged connection, reconnection, listening modes and microphone routing.
 - [ ] Verify cold start, sign-in startup and post-restart Bluetooth recovery.
 - [ ] Verify battery caches with multiple real AirPods pairs.

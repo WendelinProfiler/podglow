@@ -1,16 +1,24 @@
-# 0.1.0 experimental alpha
+# Podglow 0.1.1 experimental alpha
 
-This is the first packaged build of AirPods Companion. It includes the native Windows tray widget, the matching modified WPods host and service, the .NET runtime and the original usbip-win2 installer.
+Podglow is the new name for AirPods Companion. This release adds an updater for this repository's releases and retains the existing installation identifier. It includes the native Windows tray widget, matching modified WPods host and service, .NET runtime and original usbip-win2 installer.
+
+## New in this version
+
+- Manual update checks from the tray menu, plus optional daily background checks and an update notification.
+- Version and channel checks, SHA-256 verification, bounded downloads and restricted HTTPS redirects before an interactive installation.
+- Updated app and download names. Install this version manually once if you have 0.1.0; that older version has no updater.
+
+Read [how updates work](docs/UPDATES.md), including the limits of unsigned alpha packages.
 
 The package has been compiled and checked locally. Installation, uninstall, rollback and operation on a clean or different Windows computer have not been tested. Bluetooth hardware behavior with this packaged build is unverified. Use it only if you are comfortable troubleshooting an experimental Bluetooth tool.
 
 ## Installation
 
 1. Save your work and keep a wired keyboard or touchpad available. Setting up the Bluetooth service can briefly disconnect Bluetooth devices.
-2. Run `AirPodsCompanion-Setup.exe`. Choose whether to start the widget when you sign in.
+2. Run `Podglow-Setup.exe`. Choose whether to start the widget when you sign in.
 3. Read and accept the Bluetooth setup page. The installer needs administrator permission for the service and signed upstream driver.
 4. If a restart is required, finish your work and restart later. Setup does not change Secure Boot or Windows Test Mode.
-5. Pair your AirPods in Windows Bluetooth settings, then open AirPods Companion from Start or the notification area.
+5. Pair your AirPods in Windows Bluetooth settings, then open Podglow from Start or the notification area.
 
 An existing WPods service belonging to another installation must be removed through that installation first. The alpha does not take over or silently replace it.
 
@@ -18,7 +26,7 @@ The app and installer are not Authenticode-signed. Windows may show an unknown-p
 
 ## Removal and recovery
 
-Use Windows Settings > Apps > Installed apps > AirPods Companion > Uninstall. The inherited WPods removal path attempts to restore the Bluetooth adapter before removing the USB/IP dependency. Keep settings unless you intentionally want to remove them. Recovery remains untested with this alpha package.
+Use Windows Settings > Apps > Installed apps > Podglow > Uninstall. The inherited WPods removal path attempts to restore the Bluetooth adapter before removing the USB/IP dependency. Keep settings unless you intentionally want to remove them. Recovery remains untested with this alpha package.
 
 If Bluetooth is unavailable, use a touchpad or wired input to rerun Setup, then uninstall. Do not manually delete service or driver files. If the adapter cannot be restored, keep the USB/IP dependency installed and report the failure.
 
@@ -28,7 +36,7 @@ If Bluetooth is unavailable, use a touchpad or wired input to rerun Setup, then 
 - Advanced controls require the matching host and a working service. Preview mode uses sample data and never controls a device.
 - Battery reports depend on what the AirPods send. Older readings remain labelled as cached.
 - Apple fonts, extracted Apple glyphs and private product artwork are excluded. Some icon positions in the public interface are intentionally empty.
-- Automatic updates are disabled. Install future companion releases manually.
+- WPods' upstream automatic installer stays disabled. Podglow checks only its own repository and asks before downloading or installing.
 - Multi-monitor, DPI, cold-start and device-switch hardware validation are still open.
 
-See CREDITS.md and licenses/ for upstream authors and required notices. WPods supplies the Bluetooth foundation; AirPods Companion is an independent fork and interface.
+See CREDITS.md and licenses/ for upstream authors and required notices. WPods supplies the Bluetooth foundation; Podglow is an independent fork and interface.

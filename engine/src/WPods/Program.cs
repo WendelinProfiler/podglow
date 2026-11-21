@@ -13,6 +13,11 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.Contains("--companion-update", StringComparer.OrdinalIgnoreCase))
+        {
+            WPods.Updates.CompanionUpdater.Run(args);
+            return;
+        }
         bool startup = false;
         foreach (string arg in args)
         {

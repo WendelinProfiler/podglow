@@ -18,8 +18,8 @@ public class AirPodsRenderTest {
 '@
 [AirPodsRenderTest]::SetProcessDpiAwarenessContext([IntPtr](-4))|Out-Null
 [AirPodsRenderTest]::SetThreadDpiAwarenessContext([IntPtr](-4))|Out-Null
-$h=[AirPodsRenderTest]::FindWindow('AirPodsCompanionWidget','AirPods Companion — Preview')
-if($h -eq [IntPtr]::Zero -or ![AirPodsRenderTest]::IsWindowVisible($h)){$island=[AirPodsRenderTest]::FindWindow('AirPodsCompanionWidget','AirPods Companion — Preview');[AirPodsRenderTest]::PostMessage($island,0x80c1,[IntPtr]::Zero,[IntPtr]::Zero)|Out-Null;Start-Sleep -Milliseconds 1000;$h=[AirPodsRenderTest]::FindWindow('AirPodsCompanionWidget','AirPods Companion — Preview')}
+$h=[AirPodsRenderTest]::FindWindow('AirPodsCompanionWidget','Podglow — Preview')
+if($h -eq [IntPtr]::Zero -or ![AirPodsRenderTest]::IsWindowVisible($h)){$island=[AirPodsRenderTest]::FindWindow('AirPodsCompanionWidget','Podglow — Preview');[AirPodsRenderTest]::PostMessage($island,0x80c1,[IntPtr]::Zero,[IntPtr]::Zero)|Out-Null;Start-Sleep -Milliseconds 1000;$h=[AirPodsRenderTest]::FindWindow('AirPodsCompanionWidget','Podglow — Preview')}
 function Navigate-Click($x,$y){$scale=[AirPodsRenderTest]::GetProp($h,'AirPodsScale1000').ToInt64()/1000.0;$xx=[int]($x*$scale)+[AirPodsRenderTest]::GetProp($h,'AirPodsOffsetX').ToInt64();$yy=[int]($y*$scale)+[AirPodsRenderTest]::GetProp($h,'AirPodsOffsetY').ToInt64();$point=[IntPtr](($yy -shl 16)-bor($xx-band65535));[AirPodsRenderTest]::SendMessage($h,0x201,[IntPtr]1,$point)|Out-Null;[AirPodsRenderTest]::SendMessage($h,0x202,[IntPtr]::Zero,$point)|Out-Null;Start-Sleep -Milliseconds 900}
 $current=[AirPodsRenderTest]::GetProp($h,'AirPodsPage').ToInt64()
 while($current -gt 0){Navigate-Click 318 32;$current=[AirPodsRenderTest]::GetProp($h,'AirPodsPage').ToInt64()}

@@ -6,7 +6,7 @@ Use Windows x64 with Visual Studio Build Tools, MSVC and the Windows SDK. Buildi
 
 ```powershell
 ./scripts/Build-NativeWidget.ps1
-out/native-widget/AirPodsCompanion.exe --preview
+out/native-widget/Podglow.exe --preview
 ```
 
 `--preview` uses labelled sample data and blocks device commands. `--widget-only` reads an existing compatible host without starting an engine or installing drivers. Normal startup looks for `engine/IslandAirPodsHost.exe` beside the widget.
