@@ -17,6 +17,8 @@ WPods uses additional libraries, including FFmpeg, RNNoise, DeepFilterNet, WebRT
 
 ## Additional development references
 
+The installer is adapted from WPods' GPL-3.0 Inno Setup script, retaining its Bluetooth service recovery and dependency-removal approach. [Inno Setup](https://github.com/jrsoftware/issrc), by Jordan Russell, Martijn Laan and contributors, compiles the wizard. [innounp](https://innounp.sourceforge.net/) is used as a build-time extractor for the hash-pinned upstream archive. Neither build tool is bundled with the app. Public prose was edited using [Humanizer](https://github.com/blader/humanizer) by blader; it is an editorial tool, not a runtime dependency.
+
 [MoOx/sf-symbols-svg](https://github.com/MoOx/sf-symbols-svg) supplied the symbol-name/Unicode mapping used to extract original glyphs for the private local prototype. [brendanballon/sfsymbols-svg](https://github.com/brendanballon/sfsymbols-svg) was consulted to check exported symbol data. These references do not grant permission to redistribute Apple's fonts or glyphs. Neither repository is a runtime dependency of the public widget.
 
 ## Apple assets and names

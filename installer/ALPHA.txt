@@ -1,0 +1,9 @@
+AirPods Companion: experimental alpha
+
+This package has not been tested on clean Windows or different hardware. Installation, removal and recovery are unverified. Keep a touchpad or wired keyboard available.
+
+The Bluetooth engine is a modified WPods build. Setup installs its background service and the original signed usbip-win2 dependency. Bluetooth devices may disconnect briefly. A Windows restart may be required; you can choose to restart later.
+
+Setup does not change Secure Boot or Windows Test Mode. Our app and installer are unsigned. Automatic updates are disabled.
+
+Read RELEASE-NOTES.md and CREDITS.md before relying on this build.

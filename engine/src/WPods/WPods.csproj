@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\..\.build\native\bin\*.dll" Condition="Exists('..\..\.build\native\bin\*.dll')" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\.build\native\bin\*.dll" Condition="Exists('..\..\.build\native\bin')" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\.build\native\bin\DeepFilterNet3_onnx.tar.gz" Condition="Exists('..\..\.build\native\bin\DeepFilterNet3_onnx.tar.gz')" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <!-- Mic mode models, downloaded (native\fetch-models.ps1) -->
     <Content Include="..\..\.build\native\bin\models\dpdfnet2_48khz_hr.onnx" Condition="Exists('..\..\.build\native\bin\models\dpdfnet2_48khz_hr.onnx')" Link="models\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />

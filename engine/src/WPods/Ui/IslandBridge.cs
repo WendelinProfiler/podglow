@@ -1,4 +1,4 @@
-﻿// Private per-user Island integration for WPods v0.4.2 (GPL-3.0).
+// Private per-user Island integration for WPods v0.4.2 (GPL-3.0).
 // No raw Bluetooth packets, pairing keys or audio are written by this bridge.
 using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
@@ -75,11 +75,17 @@ internal sealed partial class TrayApp
             ?? devices.FirstOrDefault()?.Address ?? 0;
         if (address != _companionAddress)
         {
+            if (_companionAddress != 0) SaveUxBatteryCache(true);
             _companionAddress = address;
             _islandLeft = _islandRight = _islandCase = -1; _islandCharging = 0;
             _islandCaseTick = 0; _islandCaseCharging = false; _islandCaseSource = "unknown";
             _uxLeftSeen = _uxRightSeen = _uxCaseSeen = 0;
             _uxLeftObserved = _uxRightObserved = _uxCaseObserved = 0; _uxCached = 0;
+            _islandMicRouted = false; _islandMicKind = -1; _islandLastMicAttempt = 0;
+            _islandCaseLidOpen = _islandCaseBudInside = null; _islandBatteryTick = 0;
+            _uxCacheWritten = ""; _uxCacheSavedAt = 0;
+            _uxCommand = _uxValue = _uxPhase = 0; _islandMessage = ""; _islandError = 0;
+            if (_uxMap is not null) LoadUxBatteryCache();
         }
         return address;
     }

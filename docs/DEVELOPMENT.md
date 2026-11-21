@@ -34,3 +34,7 @@ This exercises local preview navigation. It does not prove Bluetooth operation, 
 The README images come from the public native preview. They contain sample readings, with no desktop capture or personal device data. `scripts/Save-SharedWidgetRender.ps1` saves only the app's own rendered window using `PrintWindow`. Start the preview before running it.
 
 Keep preview labels visible. Replace these images with verified release screenshots when the matching public host and installer have passed testing.
+
+## Experimental download
+
+The installer build is described in [RELEASE.md](RELEASE.md). Its native widget can also find the matching host in the same installation directory. The packaged host is rebuilt from this source; only pinned upstream native libraries and supporting resources come from the original WPods release archive.

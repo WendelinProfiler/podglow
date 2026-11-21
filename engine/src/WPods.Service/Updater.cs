@@ -28,6 +28,8 @@ internal enum UpdateStatus : byte
 /// </summary>
 internal sealed class Updater : IDisposable
 {
+    // Never replace this matching fork with an upstream automatic update.
+    private static readonly bool UpdatesDisabled = true;
     private const string LatestRelease = "https://api.github.com/repos/FPNDev/wpods/releases/latest";
     private const string AssetName = "WPods-Setup.exe";
     private const string StagedValue = "UpdateStaged";      // "version|file|sha256"
@@ -59,7 +61,7 @@ internal sealed class Updater : IDisposable
         _changed = changed;
         _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("WPods", Current.ToString(3)));
         _http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
-        if (Staged() is { } staged && staged.Version > Current)
+        if (!UpdatesDisabled && Staged() is { } staged && staged.Version > Current)
         {
             _available = staged.Version;
             _status = UpdateStatus.Ready;
@@ -68,7 +70,7 @@ internal sealed class Updater : IDisposable
         {
             _error = "D3";
         }
-        _timer = new Timer(_ => _ = RunAsync(), null, TimeSpan.Zero, CheckInterval);
+        _timer = new Timer(_ => _ = RunAsync(), null, Timeout.InfiniteTimeSpan, CheckInterval);
     }
 
     public static Version Current { get; } = Trim(typeof(Updater).Assembly.GetName().Version ?? new Version(0, 0, 0));
@@ -76,7 +78,7 @@ internal sealed class Updater : IDisposable
     /// <summary>Auto-install new versions (Setup's checkbox, then the app's switch); on when not set.</summary>
     public static bool Auto
     {
-        get => Registry.LocalMachine.OpenSubKey(RadioDriver.StateKey)?.GetValue("AutoUpdate") is not int v || v != 0;
+        get => !UpdatesDisabled && (Registry.LocalMachine.OpenSubKey(RadioDriver.StateKey)?.GetValue("AutoUpdate") is not int v || v != 0);
         set
         {
             using RegistryKey key = Registry.LocalMachine.CreateSubKey(RadioDriver.StateKey);
@@ -119,6 +121,7 @@ internal sealed class Updater : IDisposable
     /// <summary>Installs a downloaded update when the app starts; the app closes for Setup and is reopened.</summary>
     public void AppStarted()
     {
+        if (UpdatesDisabled) return;
         if (Staged() is { } staged && staged.Version > Current && AttemptsFor(staged.Version) < MaxAttempts)
         {
             Log.Info("update", $"the app started with {staged.Version} downloaded: installing it now");
@@ -138,6 +141,7 @@ internal sealed class Updater : IDisposable
     /// </summary>
     public static bool InstallStagedAtStart(Action failed)
     {
+        if (UpdatesDisabled) return false;
         if (Staged() is not { } staged)
         {
             return false;
@@ -184,6 +188,7 @@ internal sealed class Updater : IDisposable
     // One run at a time: check, download when auto-update is on or on "Update now", install at once only for the latter.
     private async Task RunAsync()
     {
+        if (UpdatesDisabled) return;
         lock (_lock)
         {
             if (_working)

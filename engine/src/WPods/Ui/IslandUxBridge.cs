@@ -1,4 +1,4 @@
-﻿using System.IO.MemoryMappedFiles;
+using System.IO.MemoryMappedFiles;
 using System.Text.Json;
 using WPods.Core;
 
@@ -26,9 +26,13 @@ internal sealed partial class TrayApp
         public long CaseSeen { get; set; }
     }
 
-    private void StartUxBridge()
+    private string BatteryCacheFile => Path.Combine(_islandFolder, $"battery-cache-{_companionAddress:X12}.json");
+
+    private void LoadUxBatteryCache()
     {
-        string file = Path.Combine(_islandFolder, "battery-cache.json");
+        if (_companionAddress == 0) return;
+        string file = BatteryCacheFile;
+        if (!File.Exists(file)) file = Path.Combine(_islandFolder, "battery-cache.json");
         try
         {
             UxBatteryCache? cache = File.Exists(file) ? JsonSerializer.Deserialize<UxBatteryCache>(File.ReadAllText(file)) : null;
@@ -47,6 +51,11 @@ internal sealed partial class TrayApp
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
         { Log.Warn("island", "battery cache unavailable: " + e.GetType().Name); }
+    }
+
+    private void StartUxBridge()
+    {
+        LoadUxBatteryCache();
         _uxMap = MemoryMappedFile.CreateOrOpen(@"Local\IslandAirPods.Ux.v1", 80, MemoryMappedFileAccess.ReadWrite);
         _uxView = _uxMap.CreateViewAccessor(0, 80, MemoryMappedFileAccess.ReadWrite);
     }
@@ -106,12 +115,13 @@ internal sealed partial class TrayApp
 
     private void SaveUxBatteryCache(bool force)
     {
+        if (_companionAddress == 0) return;
         long now = Environment.TickCount64; if (!force && now - _uxCacheSavedAt < 5000) return;
         _uxCacheSavedAt = now;
         string data = JsonSerializer.Serialize(new UxBatteryCache { Address = _companionAddress, Left = _islandLeft, Right = _islandRight, Case = _islandCase,
             Charging = _islandCharging, LeftSeen = _uxLeftSeen, RightSeen = _uxRightSeen, CaseSeen = _uxCaseSeen });
         if (data == _uxCacheWritten) return;
-        try { string file = Path.Combine(_islandFolder, "battery-cache.json"); File.WriteAllText(file + ".tmp", data); File.Move(file + ".tmp", file, true); _uxCacheWritten = data; }
+        try { string file = BatteryCacheFile; File.WriteAllText(file + ".tmp", data); File.Move(file + ".tmp", file, true); _uxCacheWritten = data; }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log.Warn("island", "battery cache write: " + e.GetType().Name); }
     }
 

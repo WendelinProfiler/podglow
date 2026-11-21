@@ -6,15 +6,15 @@
 
 Battery readings, listening modes and audio controls in a compact tray widget.
 
-**Experimental source preview · Windows x64 · GPL-3.0**
+**Experimental alpha · Windows x64 · GPL-3.0**
 
-[Preview](#preview) · [Build](#try-the-interface) · [Development](docs/DEVELOPMENT.md) · [Credits](CREDITS.md)
+[Download alpha](https://github.com/WendelinProfiler/AirPodsCompanion/releases/tag/v0.1.0-alpha.1) · [Preview](#preview) · [Build](#try-the-interface) · [Development](docs/DEVELOPMENT.md) · [Credits](CREDITS.md)
 
 </div>
 
 Built on [WPods](https://github.com/FPNDev/wpods), with a shared native interface for the Windows notification area and an optional Island integration.
 
-> **Before you install:** a tested public installer is not available yet. You can build and explore the interface with sample data. The matching Bluetooth host, driver setup and clean-machine installation still need release testing.
+> **Experimental download:** [0.1.0 alpha](https://github.com/WendelinProfiler/AirPodsCompanion/releases/tag/v0.1.0-alpha.1) includes the widget, matching host, service and runtime. The package has been built and checked locally. Installation, removal, recovery and operation on clean or different Windows hardware have not been tested. Read the [release notes](RELEASE-NOTES.md) before installing.
 
 ## Preview
 
@@ -42,6 +42,12 @@ Advanced controls use the matching modified WPods host. Availability depends on 
 
 The standalone widget opens from the Windows notification area. Windhawk, a taskbar replacement and Lenovo software are optional. Both hosts use the same native presentation.
 
+## Install the alpha
+
+Download `AirPodsCompanion-Setup.exe` and `SHA256SUMS.txt` from the [prerelease](https://github.com/WendelinProfiler/AirPodsCompanion/releases/tag/v0.1.0-alpha.1). Setup provides optional sign-in startup and Bluetooth consent. It preserves an existing installation owned by another WPods app by refusing to replace it. Our app and installer are unsigned.
+
+See the [installation and recovery notes](RELEASE-NOTES.md). For a UI-only preview, build from source below.
+
 ## Try the interface
 
 Requirements: Windows x64, Visual Studio Build Tools with MSVC and the Windows SDK.
@@ -59,7 +65,7 @@ Preview mode uses sample data and sends no AirPods commands. Building the backen
 
 The shared native interface has passed local navigation checks, including settings, contextual help and credits. Hardware development has been tested on one Lenovo running Windows 11 x64 with AirPods Pro 3. Other computers, adapters and AirPods models still need testing.
 
-The public host needs its own end-to-end connection, mode and microphone tests. Installer rollback, uninstall, multiple monitors and clean Windows installation remain on the [release checklist](RELEASE-CHECKLIST.md). Driver setup may require a user-approved restart on a new computer; the widget never restarts Windows automatically.
+The public host needs its own end-to-end connection, mode and microphone tests. Installer rollback, uninstall, packaged Bluetooth operation, multiple monitors and clean Windows installation remain on the [release checklist](RELEASE-CHECKLIST.md). Driver setup may require a user-approved restart on a new computer; the widget never restarts Windows automatically.
 
 Case readings refresh when a valid report arrives. Opening a case alone does not make a cached reading current.
 

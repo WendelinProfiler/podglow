@@ -1,4 +1,4 @@
-﻿#define NOMINMAX
+#define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <windowsx.h>
@@ -206,13 +206,18 @@ static std::wstring CompanionText(const std::wstring& s){
 int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int){
  SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED);
  WCHAR file[32768]{};GetModuleFileNameW(nullptr,file,32768);g_directory=file;g_directory.resize(g_directory.find_last_of(L"\\/"));g_preview=wcsstr(GetCommandLineW(),L"--preview")!=nullptr;
+ if(wcsstr(GetCommandLineW(),L"--register-startup")){
+  HKEY key=nullptr;if(RegCreateKeyExW(HKEY_CURRENT_USER,L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",0,nullptr,0,KEY_SET_VALUE,nullptr,&key,nullptr)!=ERROR_SUCCESS)return 1;
+  std::wstring value=L"\""+g_directory+L"\\AirPodsCompanion.exe\" --startup";
+  auto result=RegSetValueExW(key,L"AirPodsCompanion",0,REG_SZ,reinterpret_cast<const BYTE*>(value.c_str()),static_cast<DWORD>((value.size()+1)*sizeof(wchar_t)));RegCloseKey(key);return result==ERROR_SUCCESS?0:1;
+ }
  HANDLE mutex=CreateMutexW(nullptr,TRUE,g_preview?L"Local\\AirPodsCompanion.Native.Preview":L"Local\\AirPodsCompanion.Native");if(GetLastError()==ERROR_ALREADY_EXISTS){if(auto h=FindWindowW(L"AirPodsCompanionWidget",nullptr))PostMessageW(h,WM_APP+193,0,0);CloseHandle(mutex);return 0;}
  AirPodsPanel panel;if(!panel.Create()){MessageBoxW(nullptr,L"The widget could not create its Windows graphics surface.",L"AirPods Companion",MB_ICONERROR);return 1;}
  if(!g_preview&&!wcsstr(GetCommandLineW(),L"--widget-only")&&!FindWindowW(nullptr,L"Island AirPods Control")){
-  auto engine=g_directory+L"\\engine\\IslandAirPodsHost.exe";if(GetFileAttributesW(engine.c_str())!=INVALID_FILE_ATTRIBUTES){
+  auto engine=g_directory+L"\\engine\\IslandAirPodsHost.exe";if(GetFileAttributesW(engine.c_str())==INVALID_FILE_ATTRIBUTES)engine=g_directory+L"\\IslandAirPodsHost.exe";if(GetFileAttributesW(engine.c_str())!=INVALID_FILE_ATTRIBUTES){
    std::wstring arguments=L"\""+engine+L"\" --startup";STARTUPINFOW startup{sizeof(startup)};startup.dwFlags=STARTF_USESHOWWINDOW;startup.wShowWindow=SW_HIDE;PROCESS_INFORMATION process{};
    if(CreateProcessW(engine.c_str(),arguments.data(),nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,nullptr,&startup,&process)){CloseHandle(process.hThread);CloseHandle(process.hProcess);}
   }
  }
- panel.Open();MSG msg{};while(GetMessageW(&msg,nullptr,0,0)>0){TranslateMessage(&msg);DispatchMessageW(&msg);}CloseHandle(mutex);return 0;
+ if(!wcsstr(GetCommandLineW(),L"--startup"))panel.Open();MSG msg{};while(GetMessageW(&msg,nullptr,0,0)>0){TranslateMessage(&msg);DispatchMessageW(&msg);}CloseHandle(mutex);return 0;
 }
