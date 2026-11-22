@@ -1,16 +1,17 @@
-# Podglow 0.1.3 experimental alpha
+# Podglow 0.1.4 experimental alpha
 
-Volume adjustments no longer dim unrelated controls. The widget now accepts volume scrolling anywhere over its surface and keeps the scroll direction delivered by Windows or the input driver.
+Hover over the Podglow earbud icon in the normal Windows notification area and scroll to adjust volume. The widget stays closed. Windhawk is not required.
 
 ## New in this version
 
-- Keep listening-mode and setting icons steady during brief volume writes. A busy command no longer means the device capabilities have disappeared.
-- Retain the last valid shared-state snapshot through a transient read collision, until its heartbeat expires.
-- Hold the committed slider value briefly while the host catches up, preventing it from jumping back on release.
-- Adjust volume by scrolling anywhere over the widget, with a subtle hint beside Volume. Natural scrolling is not inverted a second time.
-- Keep the original Podglow device and listening-mode vectors introduced in 0.1.2.
+- Volume scrolling over the visible notification icon, including the open overflow panel. Windows/device scroll direction is preserved.
+- Small wheel deltas accumulate before changing volume, rather than treating each touchpad event as a full wheel notch.
+- A tooltip reminder: Scroll to adjust volume.
+- Original Podglow earbud vectors replace the generic Windows application icon, with blue for connected and gray for disconnected.
 
-The native busy-volume regression and main/settings/help navigation passed. The owner confirmed that the installed Island integration no longer flickers and scrolling follows the selected input direction. That local confirmation is not a clean-machine installation test. The standalone installer remains unsigned and experimental.
+A dedicated input thread checks only vertical wheel events over the current, visible shell icon rectangle. Other icons, covered windows and stale icon positions are excluded. No mouse history is saved and nothing is injected into Explorer.
+
+Nine routing checks passed. The native integration test verifies that the hook starts, volume commands follow both directions, fractional input accumulates and scrolling keeps the widget closed. These are local automated checks, not a full manual test on stock Windows taskbars across other computers. Clean-machine installation remains untested. This is an unsigned experimental prerelease.
 
 Read [how updates work](docs/UPDATES.md) before installing.
 

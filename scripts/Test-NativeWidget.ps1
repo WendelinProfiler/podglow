@@ -41,6 +41,22 @@ function Wait-Prop($name,$wanted){for($i=0;$i -lt 40;$i++){Start-Sleep -Millisec
 function Wait-Link($up){for($i=0;$i -lt 90;$i++){Start-Sleep -Milliseconds 400;$s=State;if($s.connected -eq $up -and (!$up -or $s.backend -eq 2)){Start-Sleep -Seconds 2;return}};throw "AirPods connection did not become $up"}
 try{
  Page-Check 0 454
+ if((Prop 'PodglowTrayWheelActive') -ne 1){throw 'Tray wheel hook failed to start'}
+ [CompactAirPodsTest]::SendMessage($panel,0x10,[IntPtr]::Zero,[IntPtr]::Zero)|Out-Null
+ [CompactAirPodsTest]::SendMessage($panel,0x80c6,[IntPtr]120,[IntPtr]::Zero)|Out-Null
+ if([CompactAirPodsTest]::IsWindowVisible($panel)){throw 'Tray wheel opened widget'}
+ if((Prop 'PodglowPreviewLastCommand') -ne 12 -or (Prop 'PodglowPreviewLastValue') -ne 43){throw 'Tray wheel did not request louder volume'}
+ [CompactAirPodsTest]::SendMessage($panel,0x80c6,[IntPtr](-120),[IntPtr]::Zero)|Out-Null
+ if((Prop 'PodglowPreviewLastValue') -ne 41){throw 'Tray wheel did not request quieter volume'}
+ [CompactAirPodsTest]::SendMessage($panel,0x80c6,[IntPtr]60,[IntPtr]::Zero)|Out-Null
+ if((Prop 'PodglowPreviewLastValue') -ne 41){throw 'High-resolution wheel remainder was lost'}
+ [CompactAirPodsTest]::SendMessage($panel,0x80c6,[IntPtr]60,[IntPtr]::Zero)|Out-Null
+ if((Prop 'PodglowPreviewLastValue') -ne 43){throw 'High-resolution wheel did not accumulate'}
+ [CompactAirPodsTest]::SendMessage($panel,0x80c6,[IntPtr](-120),[IntPtr]::Zero)|Out-Null
+ if([CompactAirPodsTest]::IsWindowVisible($panel)){throw 'Tray scroll must keep widget closed'}
+ [CompactAirPodsTest]::SendMessage($panel,0x80c1,[IntPtr]::Zero,[IntPtr]::Zero)|Out-Null
+ Page-Check 0 454
+ 'PASS tray wheel thread active; volume up/down and fractional input keep widget closed; preview never writes Bluetooth'
  if($BusyVolume){
   for($i=0;$i -lt 40;$i++){if((Prop 'AirPodsControlsReady') -ne 1 -or (Prop 'AirPodsContentAlpha1000') -ne 1000){throw 'Volume write dimmed or faded unrelated controls'};Start-Sleep -Milliseconds 20}
   $point=Position 180 70
@@ -63,4 +79,4 @@ try{
  $credits=[CompactAirPodsTest]::FindTitle([IntPtr]::Zero,'Podglow — Credits & licenses');if($credits -eq [IntPtr]::Zero){throw 'Native credits window missing'}
  [CompactAirPodsTest]::PostMessage($credits,0x10,[IntPtr]::Zero,[IntPtr]::Zero)|Out-Null
  'PASS credits reachable from standalone adapter; no Bluetooth writes or screen recording'
-}finally{[CompactAirPodsTest]::PostMessage($panel,0x80c3,[IntPtr]::Zero,[IntPtr]::Zero)|Out-Null;if(!$process.WaitForExit(3000)){$process.Kill()}}
+}finally{[CompactAirPodsTest]::PostMessage($panel,0x80c3,[IntPtr]::Zero,[IntPtr]::Zero)|Out-Null;if(!$process.WaitForExit(3000)){$process.Kill();throw 'Widget and tray input thread did not stop cleanly'}}

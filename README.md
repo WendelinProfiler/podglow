@@ -8,13 +8,13 @@ Battery readings, listening modes and audio controls in a compact tray widget.
 
 **Experimental alpha · Windows x64 · GPL-3.0**
 
-[Download alpha](https://github.com/WendelinProfiler/podglow/releases/tag/v0.1.3-alpha.1) · [Preview](#preview) · [Build](#try-the-interface) · [Development](docs/DEVELOPMENT.md) · [Credits](CREDITS.md)
+[Download alpha](https://github.com/WendelinProfiler/podglow/releases/tag/v0.1.4-alpha.1) · [Preview](#preview) · [Build](#try-the-interface) · [Development](docs/DEVELOPMENT.md) · [Credits](CREDITS.md)
 
 </div>
 
 Built on [WPods](https://github.com/FPNDev/wpods), with a shared native interface for the Windows notification area and an optional Island integration.
 
-> **Experimental download:** [0.1.3 alpha](https://github.com/WendelinProfiler/podglow/releases/tag/v0.1.3-alpha.1) includes the widget, matching host, service and runtime. The package has been built and checked locally. Installation, removal, recovery and operation on clean or different Windows hardware have not been tested. Read the [release notes](RELEASE-NOTES.md) before installing.
+> **Experimental download:** [0.1.4 alpha](https://github.com/WendelinProfiler/podglow/releases/tag/v0.1.4-alpha.1) includes the widget, matching host, service and runtime. The package has been built and checked locally. Installation, removal, recovery and operation on clean or different Windows hardware have not been tested. Read the [release notes](RELEASE-NOTES.md) before installing.
 
 ## Preview
 
@@ -41,11 +41,11 @@ Actual app renders with labelled sample data. The public build excludes the priv
 
 Advanced controls use the matching modified WPods host. Availability depends on the AirPods model and connection state.
 
-The standalone widget opens from the Windows notification area. Windhawk, a taskbar replacement and Lenovo software are optional. Both hosts use the same native presentation.
+The standalone widget opens from the Windows notification area. Hover over its earbud icon and scroll to change volume without opening the widget. The tooltip includes a reminder. Windows/device natural scrolling is preserved. This works over a visible icon in the taskbar or its open overflow panel. Windhawk, a taskbar replacement and Lenovo software are optional. Both hosts use the same native presentation.
 
 ## Install the alpha
 
-Download `Podglow-Setup.exe` and `SHA256SUMS.txt` from the [prerelease](https://github.com/WendelinProfiler/podglow/releases/tag/v0.1.3-alpha.1). Setup provides optional sign-in startup and Bluetooth consent. It preserves an existing installation owned by another WPods app by refusing to replace it. Our app and installer are unsigned.
+Download `Podglow-Setup.exe` and `SHA256SUMS.txt` from the [prerelease](https://github.com/WendelinProfiler/podglow/releases/tag/v0.1.4-alpha.1). Setup provides optional sign-in startup and Bluetooth consent. It preserves an existing installation owned by another WPods app by refusing to replace it. Our app and installer are unsigned.
 
 See the [installation and recovery notes](RELEASE-NOTES.md). For a UI-only preview, build from source below.
 
