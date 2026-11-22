@@ -1,16 +1,16 @@
-# Podglow 0.1.1 experimental alpha
+# Podglow 0.1.2 experimental alpha
 
-Podglow is the new name for AirPods Companion. This release adds an updater for this repository's releases and retains the existing installation identifier. It includes the native Windows tray widget, matching modified WPods host and service, .NET runtime and original usbip-win2 installer.
+This update fills the public widget's device and listening-mode icons with original Podglow vector artwork. No Apple font or extracted Apple glyph data is included. Existing local Island artwork is not replaced by this package.
 
 ## New in this version
 
-- Manual update checks from the tray menu, plus optional daily background checks and an update notification.
-- Version and channel checks, SHA-256 verification, bounded downloads and restricted HTTPS redirects before an interactive installation.
-- Updated app and download names. Install this version manually once if you have 0.1.0; that older version has no updater.
+- Separate earbud and case symbols, plus listening-mode icons that stay sharp at different display scales.
+- Updated preview screenshot and artwork credits.
+- Fixed explicit Bluetooth consent for silent setup. Silent setup still requires the acceptance parameter; interactive setup keeps its consent page.
 
-Read [how updates work](docs/UPDATES.md), including the limits of unsigned alpha packages.
+The native widget build and main/settings/help navigation passed locally. The installer consent event tests and payload checks are listed in the release checklist. A clean-machine install and a complete updater-driven upgrade have not been tested for this version. This remains an unsigned experimental prerelease.
 
-The package has been compiled and checked locally. Installation, uninstall, rollback and operation on a clean or different Windows computer have not been tested. Bluetooth hardware behavior with this packaged build is unverified. Use it only if you are comfortable troubleshooting an experimental Bluetooth tool.
+Read [how updates work](docs/UPDATES.md) before installing.
 
 ## Installation
 
@@ -35,7 +35,7 @@ If Bluetooth is unavailable, use a touchpad or wired input to rerun Setup, then 
 - Development hardware was one Windows 11 x64 Lenovo with AirPods Pro 3. Other models and adapters are unverified. The Bluetooth engine requires a USB-connected Bluetooth adapter.
 - Advanced controls require the matching host and a working service. Preview mode uses sample data and never controls a device.
 - Battery reports depend on what the AirPods send. Older readings remain labelled as cached.
-- Apple fonts, extracted Apple glyphs and private product artwork are excluded. Some icon positions in the public interface are intentionally empty.
+- Apple fonts, extracted Apple glyphs and private product artwork are excluded. The public interface includes original Podglow device and listening-mode vectors.
 - WPods' upstream automatic installer stays disabled. Podglow checks only its own repository and asks before downloading or installing.
 - Multi-monitor, DPI, cold-start and device-switch hardware validation are still open.
 
