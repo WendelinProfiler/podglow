@@ -1,4 +1,4 @@
-﻿param([string]$Exe=(Join-Path $PSScriptRoot '../out/native-widget/Podglow.exe'))
+param([string]$Exe=(Join-Path $PSScriptRoot '../out/native-widget/Podglow.exe'),[switch]$BusyVolume)
 $ErrorActionPreference='Stop'
 Add-Type @'
 using System;using System.Runtime.InteropServices;using System.IO.MemoryMappedFiles;
@@ -28,7 +28,7 @@ public class CompactAirPodsTest {
 $status=Join-Path $env:LOCALAPPDATA 'AirPodsIsland\status.json'
 function State { [pscustomobject]@{connected=$true} }
 function Wait-State($property,$value){for($i=0;$i -lt 75;$i++){Start-Sleep -Milliseconds 150;if((State).$property -eq $value){Start-Sleep -Milliseconds 350;return}};throw "State $property did not become $value"}
-$process=Start-Process -FilePath ([IO.Path]::GetFullPath($Exe)) -ArgumentList '--preview' -PassThru
+$process=Start-Process -FilePath ([IO.Path]::GetFullPath($Exe)) -ArgumentList $(if($BusyVolume){'--preview --preview-busy-volume'}else{'--preview'}) -PassThru
 Start-Sleep -Milliseconds 900
 $island=[CompactAirPodsTest]::FindWindow('AirPodsCompanionWidget','Podglow — Preview')
 if($island -eq [IntPtr]::Zero){throw 'Native standalone widget missing'}
@@ -41,6 +41,14 @@ function Wait-Prop($name,$wanted){for($i=0;$i -lt 40;$i++){Start-Sleep -Millisec
 function Wait-Link($up){for($i=0;$i -lt 90;$i++){Start-Sleep -Milliseconds 400;$s=State;if($s.connected -eq $up -and (!$up -or $s.backend -eq 2)){Start-Sleep -Seconds 2;return}};throw "AirPods connection did not become $up"}
 try{
  Page-Check 0 454
+ if($BusyVolume){
+  for($i=0;$i -lt 40;$i++){if((Prop 'AirPodsControlsReady') -ne 1 -or (Prop 'AirPodsContentAlpha1000') -ne 1000){throw 'Volume write dimmed or faded unrelated controls'};Start-Sleep -Milliseconds 20}
+  $point=Position 180 70
+  [CompactAirPodsTest]::SendMessage($panel,0x20a,[IntPtr](120 -shl 16),[IntPtr]::Zero)|Out-Null;Wait-Prop 'AirPodsVolumeShown' 42
+  [CompactAirPodsTest]::SendMessage($panel,0x20a,[IntPtr](-120 -shl 16),[IntPtr]::Zero)|Out-Null;Wait-Prop 'AirPodsVolumeShown' 40
+  if((Prop 'AirPodsControlsReady') -ne 1){throw 'Wheel volume disabled modes'}
+  'PASS busy-volume regression: controls stay ready, no content fade; wheel above slider raises and lowers volume'
+ }
  Click 352 209
  if((State).connected){Wait-Prop 'AirPodsHelpId' 71;Click 100 325;Wait-Prop 'AirPodsHelpId' 0}
  Click 325 130;Wait-Prop 'AirPodsHelpId' 93;Click 100 325;Wait-Prop 'AirPodsHelpId' 0

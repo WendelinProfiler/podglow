@@ -8,13 +8,13 @@ Battery readings, listening modes and audio controls in a compact tray widget.
 
 **Experimental alpha · Windows x64 · GPL-3.0**
 
-[Download alpha](https://github.com/WendelinProfiler/podglow/releases/tag/v0.1.2-alpha.1) · [Preview](#preview) · [Build](#try-the-interface) · [Development](docs/DEVELOPMENT.md) · [Credits](CREDITS.md)
+[Download alpha](https://github.com/WendelinProfiler/podglow/releases/tag/v0.1.3-alpha.1) · [Preview](#preview) · [Build](#try-the-interface) · [Development](docs/DEVELOPMENT.md) · [Credits](CREDITS.md)
 
 </div>
 
 Built on [WPods](https://github.com/FPNDev/wpods), with a shared native interface for the Windows notification area and an optional Island integration.
 
-> **Experimental download:** [0.1.2 alpha](https://github.com/WendelinProfiler/podglow/releases/tag/v0.1.2-alpha.1) includes the widget, matching host, service and runtime. The package has been built and checked locally. Installation, removal, recovery and operation on clean or different Windows hardware have not been tested. Read the [release notes](RELEASE-NOTES.md) before installing.
+> **Experimental download:** [0.1.3 alpha](https://github.com/WendelinProfiler/podglow/releases/tag/v0.1.3-alpha.1) includes the widget, matching host, service and runtime. The package has been built and checked locally. Installation, removal, recovery and operation on clean or different Windows hardware have not been tested. Read the [release notes](RELEASE-NOTES.md) before installing.
 
 ## Preview
 
@@ -34,7 +34,7 @@ Actual app renders with labelled sample data. The public build excludes the priv
 | --- | --- |
 | Battery | Separate left, right and case readings, charging status and measurement age. Cached values stay marked as last seen. |
 | Listening modes | Transparency, Adaptive and Noise Cancellation on supported AirPods. |
-| Audio | Volume, microphone mute and automatic microphone selection. |
+| Audio | Volume, microphone mute and automatic microphone selection. Scroll anywhere over the widget to adjust volume; your Windows/device scroll direction is preserved. |
 | Connection | Connect or disconnect the selected AirPods from the widget. |
 | Updates | Daily checks, release notes and a verified download after confirmation. [How updates work](docs/UPDATES.md). |
 | Settings | Additional controls behind the gear button, with help beside unfamiliar options. |
@@ -45,7 +45,7 @@ The standalone widget opens from the Windows notification area. Windhawk, a task
 
 ## Install the alpha
 
-Download `Podglow-Setup.exe` and `SHA256SUMS.txt` from the [prerelease](https://github.com/WendelinProfiler/podglow/releases/tag/v0.1.2-alpha.1). Setup provides optional sign-in startup and Bluetooth consent. It preserves an existing installation owned by another WPods app by refusing to replace it. Our app and installer are unsigned.
+Download `Podglow-Setup.exe` and `SHA256SUMS.txt` from the [prerelease](https://github.com/WendelinProfiler/podglow/releases/tag/v0.1.3-alpha.1). Setup provides optional sign-in startup and Bluetooth consent. It preserves an existing installation owned by another WPods app by refusing to replace it. Our app and installer are unsigned.
 
 See the [installation and recovery notes](RELEASE-NOTES.md). For a UI-only preview, build from source below.
 

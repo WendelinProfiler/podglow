@@ -1,14 +1,16 @@
-# Podglow 0.1.2 experimental alpha
+# Podglow 0.1.3 experimental alpha
 
-This update fills the public widget's device and listening-mode icons with original Podglow vector artwork. No Apple font or extracted Apple glyph data is included. Existing local Island artwork is not replaced by this package.
+Volume adjustments no longer dim unrelated controls. The widget now accepts volume scrolling anywhere over its surface and keeps the scroll direction delivered by Windows or the input driver.
 
 ## New in this version
 
-- Separate earbud and case symbols, plus listening-mode icons that stay sharp at different display scales.
-- Updated preview screenshot and artwork credits.
-- Fixed explicit Bluetooth consent for silent setup. Silent setup still requires the acceptance parameter; interactive setup keeps its consent page.
+- Keep listening-mode and setting icons steady during brief volume writes. A busy command no longer means the device capabilities have disappeared.
+- Retain the last valid shared-state snapshot through a transient read collision, until its heartbeat expires.
+- Hold the committed slider value briefly while the host catches up, preventing it from jumping back on release.
+- Adjust volume by scrolling anywhere over the widget, with a subtle hint beside Volume. Natural scrolling is not inverted a second time.
+- Keep the original Podglow device and listening-mode vectors introduced in 0.1.2.
 
-The native widget build and main/settings/help navigation passed locally. The installer consent event tests and payload checks are listed in the release checklist. A clean-machine install and a complete updater-driven upgrade have not been tested for this version. This remains an unsigned experimental prerelease.
+The native busy-volume regression and main/settings/help navigation passed. The owner confirmed that the installed Island integration no longer flickers and scrolling follows the selected input direction. That local confirmation is not a clean-machine installation test. The standalone installer remains unsigned and experimental.
 
 Read [how updates work](docs/UPDATES.md) before installing.
 

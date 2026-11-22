@@ -177,9 +177,9 @@ public:
 
 static bool ReadCompanionState(AirPodsIslandState& s){
  if(!g_preview)return ReadAirPodsIslandState(s);
- s={};s.sequence=2;s.tick=GetTickCount64();s.connected=1;s.backend=2;s.caps=0x7ff;s.left=78;s.right=76;s.caseBattery=42;s.charging=4;s.earLeft=s.earRight=0;s.mode=2;s.conversation=0;s.personalized=0;s.earDetection=1;s.autoMic=1;s.micMuted=0;s.volume=40;s.isOutput=1;s.reserved=1|(1<<3)|(51<<6);wcscpy_s(s.name,L"Podglow — Preview");return true;
+ s={};s.sequence=2;s.tick=GetTickCount64();s.connected=1;s.backend=2;s.busy=wcsstr(GetCommandLineW(),L"--preview-busy-volume")?1:0;s.caps=0x7ff;s.left=78;s.right=76;s.caseBattery=42;s.charging=4;s.earLeft=s.earRight=0;s.mode=2;s.conversation=0;s.personalized=0;s.earDetection=1;s.autoMic=1;s.micMuted=0;s.volume=40;s.isOutput=1;s.reserved=1|(1<<3)|(51<<6);wcscpy_s(s.name,L"Podglow — Preview");return true;
 }
-static bool ReadCompanionUx(AirPodsUxState& s){if(!g_preview)return ReadAirPodsUxState(s);s={};s.sequence=2;s.tick=GetTickCount64();s.leftSeen=s.rightSeen=s.caseSeen=AirPodsUnixMs();s.confirmedMode=2;return true;}
+static bool ReadCompanionUx(AirPodsUxState& s){if(!g_preview)return ReadAirPodsUxState(s);s={};s.sequence=2;s.tick=GetTickCount64();s.leftSeen=s.rightSeen=s.caseSeen=AirPodsUnixMs();s.confirmedMode=2;s.command=wcsstr(GetCommandLineW(),L"--preview-busy-volume")?12:0;return true;}
 static void CompanionCommand(int command,int value){if(g_preview)return;if(auto h=FindWindowW(nullptr,L"Island AirPods Control"))PostMessageW(h,WM_APP+2,command,value);}
 static std::wstring CompanionText(const std::wstring& s);
 static std::wstring CompanionAssetFile(){return g_directory+L"\\assets\\AirPods-Pro-3.png";}
@@ -203,7 +203,7 @@ inline winrt::com_ptr<ID2D1PathGeometry> MakeAirPodsOriginalGlyph(ID2D1Factory* 
 static std::wstring CompanionText(const std::wstring& s){
  const auto& help=CompanionEnglishHelp();if(auto item=help.find(s);item!=help.end())return item->second;
  static const std::map<std::wstring,std::wstring> words{
-  {L"Verbunden",L"Connected"},{L"Nicht verbunden",L"Not connected"},{L"Hörmodus",L"Listening mode"},{L"Transparenz",L"Transparency"},{L"Adaptiv",L"Adaptive"},{L"Geräusch-\nunterdrückung",L"Noise\ncancellation"},{L"Aus",L"Off"},{L"Lautstärke",L"Volume"},{L"AirPods-Einstellungen",L"AirPods settings"},
+  {L"Verbunden",L"Connected"},{L"Nicht verbunden",L"Not connected"},{L"Hörmodus",L"Listening mode"},{L"Transparenz",L"Transparency"},{L"Adaptiv",L"Adaptive"},{L"Geräusch-\nunterdrückung",L"Noise\ncancellation"},{L"Aus",L"Off"},{L"Scrollen: lauter / leiser",L"Scroll to adjust"},{L"Lautstärke",L"Volume"},{L"AirPods-Einstellungen",L"AirPods settings"},
   {L"Links",L"Left"},{L"Rechts",L"Right"},{L"Case",L"Case"},{L"Im Ohr",L"In ear"},{L"Im Case",L"In case"},{L"Außerhalb",L"Out of ear"},{L"⚡ Lädt",L"\u26a1 Charging"},{L"Zuletzt: lädt",L"Last seen charging"},{L"Wird nicht geladen",L"Not charging"},{L"Gerade aktualisiert",L"Updated just now"},{L"Stand unbekannt",L"Last seen unknown"},{L"Noch kein Wert",L"No reading yet"},
   {L"Trennen",L"Disconnect"},{L"Verbinden",L"Connect"},{L"Erneut verbinden",L"Try connecting again"},{L"Bitte warten",L"Please wait…"},{L"Verbindung wird hergestellt …",L"Connecting…"},{L"Verbindung wird hergestellt",L"Connecting…"},{L"Wird getrennt",L"Disconnecting…"},{L"HÖREN",L"LISTENING"},{L"MIKROFON",L"MICROPHONE"},
   {L"Gespräche erkennen",L"Conversation awareness"},{L"Lautstärke automatisch anpassen",L"Personalized volume"},{L"Beim Herausnehmen pausieren",L"Pause when removed"},{L"Mikrofon ausschalten",L"Mute microphone"},{L"AirPods-Mikrofon automatisch nutzen",L"Switch microphone automatically"},{L"Weitere Optionen",L"More options"},{L"Mikrofonseite",L"Microphone side"},{L"Automatisch",L"Automatic"},
