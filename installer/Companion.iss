@@ -440,7 +440,7 @@ begin
   BluetoothConsent.Width := BluetoothPage.SurfaceWidth;
   BluetoothConsent.Height := ScaleY(38);
   BluetoothConsent.Caption := 'Allow Bluetooth service and USB/IP driver setup';
-  BluetoothConsent.Checked := False;
+  BluetoothConsent.Checked := WizardSilent and (ExpandConstant('{param:ACCEPTBLUETOOTH|0}') = '1');
   BluetoothPage.MsgLabel.AutoSize := False;
   BluetoothPage.MsgLabel.Height := BluetoothConsent.Top - ScaleY(8);
 end;
@@ -740,6 +740,10 @@ end;
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := True;
+  if (CurPageID = BluetoothPage.ID) and WizardSilent then begin
+    Result := ExpandConstant('{param:ACCEPTBLUETOOTH|0}') = '1';
+    Exit;
+  end;
   if (CurPageID = BluetoothPage.ID) and not BluetoothConsent.Checked then begin
     MsgBox('Please accept Bluetooth setup to continue, or cancel without changing your Bluetooth configuration.', mbInformation, MB_OK);
     Result := False;
