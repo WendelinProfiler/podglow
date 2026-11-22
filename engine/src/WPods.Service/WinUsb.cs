@@ -292,14 +292,15 @@ internal sealed unsafe partial class WinUsbDevice : IDisposable
         }
     }
 
-    /// <summary>USB/IP speed of the device (1 low, 2 full, 3 high), as WinUSB reports it; full speed if unknown.</summary>
+    /// <summary>USB/IP speed for a Bluetooth bulk-transfer radio: full or high speed, never low speed.</summary>
     public uint Speed
     {
         get
         {
             byte speed = 0;
             uint length = 1;
-            return WinUsb_QueryDeviceInformation(FirstInterface, 1 /* DEVICE_SPEED */, ref length, &speed) && speed is >= 1 and <= 3 ? speed : 2u;
+            bool queried = WinUsb_QueryDeviceInformation(FirstInterface, 1 /* DEVICE_SPEED */, ref length, &speed);
+            return UsbSpeedPolicy.ForBluetoothRadio(queried, speed);
         }
     }
 

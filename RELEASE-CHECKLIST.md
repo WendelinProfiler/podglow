@@ -1,6 +1,6 @@
 # Experimental alpha checklist
 
-## Prepared for 0.1.4-alpha.1
+## Prepared for 0.1.5-alpha.1
 
 - [x] Preserve complete modified WPods source and required third-party notices.
 - [x] Provide one shared native interface for the Windows tray and optional Island host.

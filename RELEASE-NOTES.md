@@ -1,17 +1,16 @@
-# Podglow 0.1.4 experimental alpha
+# Podglow 0.1.5 experimental alpha
 
-Hover over the Podglow earbud icon in the normal Windows notification area and scroll to adjust volume. The widget stays closed. Windhawk is not required.
+This patch fixes an invalid USB-speed value in the Bluetooth proxy. It also includes a manual recovery tool for a virtual USB/IP controller that remains stuck after sleep.
 
 ## New in this version
 
-- Volume scrolling over the visible notification icon, including the open overflow panel. Windows/device scroll direction is preserved.
-- Small wheel deltas accumulate before changing volume, rather than treating each touchpad event as a full wheel notch.
-- A tooltip reminder: Scroll to adjust volume.
-- Original Podglow earbud vectors replace the generic Windows application icon, with blue for connected and gray for disconnected.
+- Bluetooth radios with bulk endpoints are advertised as USB full or high speed, never low speed. The previous translation could cause Windows device error 43 and make Bluetooth disappear.
+- A narrowly scoped recovery script checks the installed Podglow service and exact usbip-win2 hardware identity before restarting only the virtual controller. It does not restart Windows or reset physical USB controllers.
+- A [Bluetooth recovery guide](docs/BLUETOOTH-RECOVERY.md) explains when updating is enough and when the virtual controller also needs a reset.
 
-A dedicated input thread checks only vertical wheel events over the current, visible shell icon rectangle. Other icons, covered windows and stale icon positions are excluded. No mouse history is saved and nothing is injected into Explorer.
+Seven speed-policy checks passed. On the development Intel AX211 system, the patched service plus a virtual-controller reset restored Bluetooth, AirPods, ANC status and audio endpoints without a Windows restart. The recovery script passed its read-only target check. Other computers and a full sleep/resume validation of this package remain untested.
 
-Nine routing checks passed. The native integration test verifies that the hook starts, volume commands follow both directions, fractional input accumulates and scrolling keeps the widget closed. These are local automated checks, not a full manual test on stock Windows taskbars across other computers. Clean-machine installation remains untested. This is an unsigned experimental prerelease.
+The native widget, tray scrolling and user-approved updater are retained. This is an unsigned experimental prerelease.
 
 Read [how updates work](docs/UPDATES.md) before installing.
 

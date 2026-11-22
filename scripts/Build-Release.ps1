@@ -1,5 +1,5 @@
 param(
- [string]$Version='0.1.4',
+ [string]$Version='0.1.5',
  [string]$ReleaseTag,
  [string]$DotNet='dotnet',
  [Parameter(Mandatory)][string]$InnoUnpacker,
@@ -42,7 +42,9 @@ Copy-Item -LiteralPath (Join-Path $output 'native-widget/Podglow.exe') -Destinat
 Copy-Item -LiteralPath (Join-Path $output 'engine/AirPodsAudio.dll') -Destination $payload
 foreach($name in @('LICENSE','CREDITS.md','RELEASE-NOTES.md','RELEASE-CHECKLIST.md')){Copy-Item -LiteralPath (Join-Path $root $name) -Destination $payload}
 New-Item -ItemType Directory -Force (Join-Path $payload 'docs') | Out-Null
-Copy-Item -LiteralPath (Join-Path $root 'docs/UPDATES.md') -Destination (Join-Path $payload 'docs/UPDATES.md')
+Copy-Item -LiteralPath (Join-Path $root 'docs/UPDATES.md'),(Join-Path $root 'docs/BLUETOOTH-RECOVERY.md') -Destination (Join-Path $payload 'docs')
+New-Item -ItemType Directory -Force (Join-Path $payload 'support') | Out-Null
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Repair-Bluetooth.ps1') -Destination (Join-Path $payload 'support/Repair-Bluetooth.ps1')
 Copy-Item -LiteralPath (Join-Path $root 'licenses') -Destination $payload -Recurse
 New-Item -ItemType Directory -Force (Join-Path $payload 'drivers') | Out-Null
 Copy-Item -LiteralPath (Join-Path $root 'engine/installer/drivers.ps1') -Destination (Join-Path $payload 'drivers/drivers.ps1')

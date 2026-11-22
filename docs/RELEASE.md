@@ -13,7 +13,7 @@ Use tools from their original publishers. `InnoUnpacker` and `InnoCompiler` are 
 
 ```powershell
 ./scripts/Build-Release.ps1 `
-  -Version 0.1.4 `
+  -Version 0.1.5 `
   -InnoUnpacker C:/BuildTools/innounp/innounp.exe `
   -InnoCompiler 'C:/Program Files (x86)/Inno Setup 6/ISCC.exe'
 ```
@@ -26,7 +26,7 @@ The installer includes the unmodified usbip-win2 setup, checked against its pinn
 
 ## Outputs
 
-`out/release-0.1.4/` contains:
+`out/release-0.1.5/` contains:
 
 - `Podglow-Setup.exe`
 - `SHA256SUMS.txt`
