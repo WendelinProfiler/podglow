@@ -193,8 +193,8 @@ static std::wstring CompanionAssetFile(){return g_directory+L"\\assets\\AirPods-
 #ifdef COMPANION_LOCAL_GLYPHS
 #include "LocalGlyphs.h"
 #else
-// Public build deliberately contains no Apple font or extracted system assets.
-inline winrt::com_ptr<ID2D1PathGeometry> MakeAirPodsOriginalGlyph(ID2D1Factory*,int){return nullptr;}
+#include "../Shared/PodglowGlyphs.h"
+inline winrt::com_ptr<ID2D1PathGeometry> MakeAirPodsOriginalGlyph(ID2D1Factory* f,int id){return MakePodglowGlyph(f,id);}
 #endif
 #include "../Shared/AirPodsPanel.h"
 #undef ReadAirPodsIslandState

@@ -1,4 +1,4 @@
-﻿# Credits
+# Credits
 
 Podglow is an experimental companion UI built on other people's work. The Bluetooth engine is a modified WPods build, not a new Bluetooth driver written by this project.
 
@@ -30,3 +30,7 @@ The original SF Symbols outlines used in the owner's local Island prototype are 
 ## Changes in this fork
 
 The companion adds one shared native presentation with a standalone Windows tray adapter and an optional Island adapter, an optional bounded local state/control bridge, automatic Windows microphone routing, per-component battery timestamps and caching, an independent charging-case decoder, and a user-approved updater for this repository. Modified engine files remain under WPods' GPL-3.0 license. Original copyright notices are retained.
+
+## Podglow icon artwork
+
+The device and listening-mode vectors in src/Shared/PodglowGlyphs.h were drawn for Podglow and are distributed under this project's GPL-3.0 license. They do not contain exported Apple font outlines. The public widget includes these icons by default; no Apple font download is required.

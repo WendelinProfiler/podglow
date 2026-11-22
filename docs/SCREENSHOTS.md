@@ -14,4 +14,4 @@ Additional controls live behind the settings button, keeping the main panel comp
 
 ![Settings in the standalone native widget](screenshots/settings-preview.png)
 
-The public preview excludes the private prototype's Apple artwork and extracted glyphs. Images are rendered from the app's own window; they contain no desktop or personal account information.
+The main preview shows Podglow's own vector icons. The public build excludes the private prototype's Apple artwork and extracted glyphs. Images are rendered from the app's own window; they contain no desktop or personal account information.
