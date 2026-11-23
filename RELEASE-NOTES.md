@@ -1,3 +1,12 @@
+# Podglow 0.1.7 experimental alpha
+
+Changing volume no longer makes the connection button flash between Disconnect and Please wait. The connection indicator now shows activity only while connecting or disconnecting. Volume, listening modes and other settings keep their own command feedback; command serialization remains in place.
+
+This update includes the Bluetooth startup and GlideMouse coexistence fixes from 0.1.6. It does not change pairing behavior or add Magic Mouse switching between computers.
+
+The host and installer were built locally. Regression checks cover connection activity during volume changes and real connection commands. Clean-machine installation and broader hardware validation remain untested.
+
+---
 # Podglow 0.1.6 experimental alpha
 
 This patch fixes the startup path that could leave Bluetooth unavailable after a Windows restart, or leave a connected Magic Mouse without momentum and gestures when used with GlideMouse.

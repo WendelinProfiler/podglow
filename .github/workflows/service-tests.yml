@@ -17,7 +17,7 @@ jobs:
       - name: Check startup, import, speed and updater policies
         shell: pwsh
         run: |
-          foreach ($test in 'IntelBootstrapPolicy','RadioStartPolicy','UsbImportPolicy','UsbSpeedPolicy','UpdaterPolicy') {
+          foreach ($test in 'IntelBootstrapPolicy','RadioStartPolicy','UsbImportPolicy','UsbSpeedPolicy','UpdaterPolicy','IslandCommandUiPolicy') {
             dotnet run --project "tests/$test" -c Release
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
           }

@@ -16,7 +16,7 @@ internal sealed partial class TrayApp
     private readonly System.Windows.Forms.Timer _islandTimer = new() { Interval = 500 };
     private readonly string _islandFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AirPodsCompanion");
     private bool _islandBusy, _islandWasConnected;
-    private int _islandError, _islandSequence;
+    private int _islandError, _islandSequence, _islandActiveCommand;
     private string _islandMessage = "";
     private int _islandLeft = -1, _islandRight = -1, _islandCase = -1, _islandCharging;
     private ulong _islandBatteryTick;
@@ -143,7 +143,7 @@ internal sealed partial class TrayApp
             using var stream = new MemoryStream(688);
             using var w = new BinaryWriter(stream, Encoding.Unicode, leaveOpen: true);
             w.Write(0); w.Write(0x41504931u); w.Write(now);
-            w.Write(connected ? 1u : 0u); w.Write(backend); w.Write(state is null ? 0u : (uint)state.Capabilities); w.Write(_islandBusy ? 1u : 0u); w.Write(unchecked((uint)_islandError));
+            w.Write(connected ? 1u : 0u); w.Write(backend); w.Write(state is null ? 0u : (uint)state.Capabilities); w.Write(IslandCommandUiPolicy.ConnectionBusy(_islandBusy, _islandActiveCommand) ? 1u : 0u); w.Write(unchecked((uint)_islandError));
             w.Write(_islandLeft); w.Write(_islandRight); w.Write(_islandCase); w.Write(_islandCharging);
             w.Write(state?.LeftEar is { } le ? (int)le : -1); w.Write(state?.RightEar is { } re ? (int)re : -1);
             w.Write(state?.ListeningMode is { } lm ? (int)lm : -1);
@@ -177,6 +177,7 @@ internal sealed partial class TrayApp
     {
         if (_islandBusy) return;
         BeginUxCommand(command, value);
+        _islandActiveCommand = command;
         _islandBusy = true; _islandError = 0; _islandMessage = ""; PublishIslandState();
         bool ok = false;
         try
@@ -237,7 +238,7 @@ internal sealed partial class TrayApp
             if (!ok && command is 1 or 2 or 3) { _uxPhase = 3; _uxActionAt = Environment.TickCount64; }
             if (!ok) { _islandError = _islandError == 0 ? 1167 : _islandError; _islandMessage = "The action could not be completed"; }
             Log.Info("island", $"command={command} value={value} sent={ok} error={_islandError}");
-            _islandBusy = false; PublishIslandState();
+            _islandBusy = false; _islandActiveCommand = 0; PublishIslandState();
         }
     }
 
