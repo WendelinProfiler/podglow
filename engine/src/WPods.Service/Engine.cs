@@ -296,6 +296,7 @@ internal sealed class Engine
         });
         _ = _micPipe.RunAsync(_stop.Token);
         _ = _aapPipe.RunAsync(_stop.Token);
+        _ = MouseBondRenewalPipe.RunAsync(_hci, _stop.Token);
         _supervisor = new Thread(Supervise) { IsBackground = true, Name = "supervisor" };
         _supervisor.Start();
         _micThread = new Thread(ServeMic) { IsBackground = true, Name = "mic" };

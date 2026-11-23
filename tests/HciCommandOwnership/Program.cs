@@ -1,0 +1,25 @@
+using WPods.Service;
+int checks=0;
+void Check(bool ok,string label){if(!ok)throw new Exception(label);checks++;}
+byte[] Status(ushort opcode,byte status=0,byte credits=1)=>[0x0F,4,status,credits,(byte)opcode,(byte)(opcode>>8)];
+var owner=new HciCommandOwnership();
+Check(!owner.BeginOwn(0x0406),"Cannot issue arbitrary HCI commands");
+Check(owner.BeginWindows(0x0419),"Windows starts its own command");
+Check(!owner.BeginOwn(0x0411),"Own security waits for Windows acknowledgement");
+Check(!owner.Acknowledge(Status(0x0419),out _,out _),"Windows acknowledgement is forwarded");
+Check(owner.BeginOwn(0x0411),"Own authentication can acquire the physical credit");
+Check(!owner.BeginWindows(0x040B),"Windows key reply waits only until own command status");
+Check(!owner.Acknowledge(Status(0x0413),out _,out _),"Unrelated event is not swallowed");
+Check(owner.Acknowledge(Status(0x0411),out ushort opcode,out byte error)&&opcode==0x0411&&error==0,"Own status consumed and slot released");
+Check(owner.BeginWindows(0x040B),"Key handling resumes in Windows");
+Check(!owner.BeginOwn(0x0413),"Encryption waits for native key command completion");
+Check(!owner.Acknowledge(new byte[]{0x0E,4,1,0x0B,0x04,0},out _,out _),"Native command complete is forwarded");
+Check(owner.BeginOwn(0x0413),"Encryption can start after Windows key handling");
+Check(owner.Acknowledge(Status(0x0413,5),out _,out error)&&error==5,"Controller errors reported to own caller");
+owner.Reset();owner.BeginWindows(0x0C03);owner.BeginWindows(0x0C03);
+owner.Acknowledge(Status(0x0C03),out _,out _);Check(!owner.BeginOwn(0x0411),"Multiple outstanding native commands are counted");
+owner.Acknowledge(Status(0x0C03,0,0),out _,out _);Check(!owner.BeginOwn(0x0411),"Zero controller credits are respected");
+owner.Acknowledge(new byte[]{0x0E,3,1,0,0},out _,out _);Check(owner.BeginOwn(0x0411),"No-op credit notification releases the wait");
+owner.Reset();owner.BeginWindows(0xFC01);Check(owner.BeginOwn(0x0411),"Vendor boot commands do not leave a permanent fake acknowledgement wait");
+var random=new Random(12);for(int i=0;i<10000;i++){var packet=new byte[random.Next(0,100)];random.NextBytes(packet);owner.Acknowledge(packet,out _,out _);}checks++;
+Console.WriteLine($"PASS {checks} HCI command ownership checks and 10000 malformed packets; no real hardware accessed");

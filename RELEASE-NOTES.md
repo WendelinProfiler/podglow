@@ -1,3 +1,32 @@
+# Podglow 0.1.8 experimental alpha
+
+This release includes the matching Bluetooth-service support for GlideMouse 0.2.0
+and its optional Mac companion. Normal AirPods operation remains available without
+the mouse add-on, which must be explicitly configured for one mouse and owner.
+
+- Automatic microphone mode routes supported AirPods to the virtual A2DP microphone and call output. HFP changes rebuild the audio link to avoid a stale communications endpoint. Older models without a virtual microphone retain HFP.
+- Windows-owned mouse authentication is separated from the direct HID input channels.
+- Channel negotiation, touch-mode activation and handoff release are bounded and scoped
+  to the configured device. A pointer-only connection is not reported as full touch readiness.
+- Input report 0x90 supplies real USB-C Magic Mouse charge, decoded after its power flags.
+  Unsupported/truncated/unknown battery responses do not disable touch or invent a percentage.
+- The latest valid report is published to the configured owner's existing mouse profile.
+  Battery refresh runs outside the input/ACL lock and does not reconnect the device.
+- Includes the prior stable connection feedback during volume changes and Bluetooth startup fixes.
+
+Runtime hardware validation used one Windows 11 x64 Intel USB adapter, an Apple-silicon
+Mac and USB-C Magic Mouse. The mouse supplied a real 99% report and the Island showed
+that value. Bidirectional handoff, automatic Windows takeover after Mac shutdown and
+Mac takeover with Windows's helper stopped and SSH closed were confirmed on that pair.
+No universally successful twenty-switch series, clean-machine install, actual Windows
+power-off round trip, other adapters or all sleep states are claimed.
+
+The installer and payload checks do not replace clean-machine installation testing.
+The companion is an independent optional download in GlideMouse's release. The full
+Windhawk Island mod, personal settings, device identities and development logs are not
+part of this Podglow installer. See the existing installation/recovery guidance below.
+
+---
 # Podglow 0.1.7 experimental alpha
 
 Changing volume no longer makes the connection button flash between Disconnect and Please wait. The connection indicator now shows activity only while connecting or disconnecting. Volume, listening modes and other settings keep their own command feedback; command serialization remains in place.

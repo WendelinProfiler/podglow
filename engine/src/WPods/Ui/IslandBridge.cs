@@ -23,6 +23,8 @@ internal sealed partial class TrayApp
     private bool _islandCaseCharging; private long _islandCaseTick; private string _islandCaseSource = "unknown"; private bool? _islandCaseLidOpen, _islandCaseBudInside;
     private bool _islandAutoMic = true;
     private bool _islandMicRouted;
+    private bool _stereoCallApplying;
+    private ulong _stereoCallAttempt;
     private int _islandMicKind = -1;
     private bool _islandOwnTray;
 
@@ -90,6 +92,20 @@ internal sealed partial class TrayApp
         return address;
     }
     private ulong _companionAddress;
+    private async Task PrepareStereoCallAsync(ulong address)
+    {
+        _stereoCallApplying = true;
+        try
+        {
+            await ApplyHostSettingsAsync(address, s => s with { DisableHandsFree = true }, toast: false);
+            _islandMicRouted = false;
+        }
+        catch (Exception e)
+        {
+            Log.Warn("island", $"stereo call preparation failed: {e.GetType().Name}");
+        }
+        finally { _stereoCallApplying = false; }
+    }
     [DllImport("AirPodsAudio.dll", CharSet = CharSet.Unicode)] private static extern void AirPodsAudioSetTarget(string name);
     private void PublishIslandState()
     {
@@ -129,11 +145,24 @@ internal sealed partial class TrayApp
                 }
             }
             if (!connected) { _islandMicRouted = false; _islandMicKind = -1; }
+            // Keep HFP for older models without a virtual stereo microphone.
+            if (_islandAutoMic && connected && backend == 2 && _islandAudio[4] == 1 &&
+                !_stereoCallApplying && now - _stereoCallAttempt > 15000 &&
+                session is not null && !_settings.Get(session.Address).DisableHandsFree)
+            {
+                _stereoCallAttempt = now;
+                _ = PrepareStereoCallAsync(session.Address);
+            }
             if (_islandAutoMic && connected && (!_islandMicRouted || _islandAudio[4] > _islandMicKind) && _islandAudio[3] >= 0 && now - _islandLastMicAttempt > 2000)
             {
                 _islandLastMicAttempt = now;
                 int result = _islandAudio[3] == 1 ? 0 : AirPodsAudioCommand(16, 0);
-                if (result == 0) { _islandMicRouted = true; _islandMicKind = _islandAudio[4]; }
+                if (result == 0)
+                {
+                    int output = _islandAudio[4] == 1 ? AirPodsAudioCommand(14, 0) : 0;
+                    _islandMicRouted = output == 0; _islandMicKind = _islandAudio[4];
+                    if (output != 0) Log.Warn("island", $"automatic call output request failed: 0x{output:X8}");
+                }
                 if (result != 0) Log.Warn("island", $"automatic microphone request failed: 0x{result:X8}");
             }
             if (!connected && _islandWasConnected && _islandAutoMic) _ = AirPodsAudioCommand(18, 0);

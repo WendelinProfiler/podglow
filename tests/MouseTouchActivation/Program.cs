@@ -1,0 +1,33 @@
+using WPods.Service;
+using System.Buffers.Binary;
+int checks=0;
+void Check(bool value,string name){if(!value)throw new Exception(name);checks++;}
+byte[] Pdu(ushort cid,params byte[] bytes){var p=new byte[4+bytes.Length];BinaryPrimitives.WriteUInt16LittleEndian(p,(ushort)bytes.Length);BinaryPrimitives.WriteUInt16LittleEndian(p.AsSpan(2),cid);bytes.CopyTo(p,4);return p;}
+var t=new MouseTouchActivation();
+Check(!t.Begin(2000),"Cannot send on an unknown channel");
+t.Observe(Pdu(1,2,1,4,0,0x13,0,0x40,0),false,2000);
+Check(t.RemoteCid==0,"Interrupt channel is not a control channel");
+t.Observe(Pdu(1,2,2,4,0,0x11,0,0x41,0),false,2001);
+t.Observe(Pdu(1,3,2,8,0,0x61,0,0x42,0,0,0,0,0),true,2002);
+Check(t.RemoteCid==0,"Unmatched connection response ignored");
+t.Observe(Pdu(1,3,2,8,0,0x61,0,0x41,0,1,0,0,0),true,2003);
+Check(t.RemoteCid==0,"Pending connection is not usable");
+t.Observe(Pdu(1,3,2,8,0,0x61,0,0x41,0,0,0,0,0),true,2004);
+Check(t.LocalCid==0x41&&t.RemoteCid==0x61,"Host initiated control channel tracked");
+t.Observe(Pdu(0x61,0x43,0xF1),false,2100);
+Check(!t.Begin(2500),"Windows control transaction must settle first");
+Check(t.Begin(3200),"Settled channel allows activation");
+Check(!t.Begin(3201),"No duplicate outstanding activation");
+Check(!t.Handshake(Pdu(0x42,0),3202),"Other channel handshake untouched");
+Check(!t.Handshake(Pdu(0x41,0xA1),3203),"Input data is not a handshake");
+Check(t.Handshake(Pdu(0x41,0),3204)&&t.Confirmed,"Successful handshake confirms activation");
+Check(!t.Begin(4300),"Confirmed activation is not resent");
+t.Observe(Pdu(1,6,3,4,0,0x61,0,0x41,0),false,4400);
+Check(t.RemoteCid==0&&!t.Confirmed,"Disconnected channels cannot be reused");
+t=new();t.Observe(Pdu(1,2,4,4,0,0x11,0,0x70,0),true,5000);
+t.Observe(Pdu(1,3,4,8,0,0x50,0,0x70,0,0,0,0,0),false,5001);
+Check(t.LocalCid==0x50&&t.RemoteCid==0x70,"Mouse initiated channel tracked");
+Check(t.Begin(5100),"Fresh mouse initiated channel usable");t.Expire(6100);
+Check(!t.Handshake(Pdu(0x50,0),6101)&&!t.Confirmed,"Late handshake cannot confirm an expired request");
+var random=new Random(87);for(int i=0;i<10000;i++){var bytes=new byte[random.Next(0,100)];random.NextBytes(bytes);t.Observe(bytes,i%2==0,7000+i);t.Handshake(bytes,7000+i);}checks++;
+Console.WriteLine($"PASS {checks} touch activation checks including 10000 malformed packets; no real device accessed");

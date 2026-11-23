@@ -23,25 +23,47 @@ internal static unsafe class HandsFree
                 return;
             }
             changing?.Invoke();
-            uint result = Native.BluetoothSetServiceState(radio, device, Service, enabled ? 1u : 0u);
-            // Windows may report the already-applied state as E_INVALIDARG, or race the state query and return
-            // ERROR_INVALID_PARAMETER; confirm the requested state before treating the latter as done.
-            if (result is Native.ErrorSuccess or Native.EInvalidArg)
+            // Windows caches the communications transport on the existing audio link.
+            // Disabling HFP without rebuilding that link can leave calls with a stale,
+            // unusable endpoint even though the multimedia endpoint still opens.
+            bool reconnect = !enabled;
+            if (reconnect)
             {
-                return;
+                int disconnect = Native.wpn_bt_disconnect_audio(address);
+                if (disconnect < 0)
+                    throw new Win32Exception(disconnect, "Windows could not release the old AirPods audio transport.");
             }
-            if (result == Native.ErrorInvalidParameter && TryIsEnabled(radio, device, out current, out _) && current == enabled)
+            try
             {
-                return;
+                uint result = Native.BluetoothSetServiceState(radio, device, Service, enabled ? 1u : 0u);
+                // Windows may report the already-applied state as E_INVALIDARG, or race the state query and return
+                // ERROR_INVALID_PARAMETER; confirm the requested state before treating the latter as done.
+                if (result is Native.ErrorSuccess or Native.EInvalidArg)
+                {
+                    return;
+                }
+                if (result == Native.ErrorInvalidParameter && TryIsEnabled(radio, device, out current, out _) && current == enabled)
+                {
+                    return;
+                }
+                uint queryResult = 0;
+                if (!enabled && TryIsEnabled(radio, device, out current, out queryResult) && !current)
+                {
+                    return;
+                }
+                string details = enabled ? string.Empty : $" Profile-state query returned 0x{queryResult:X8}.";
+                throw new Win32Exception(unchecked((int)result),
+                    $"Windows could not {(enabled ? "enable" : "disable")} Hands-Free Telephony for this device.{details}");
             }
-            uint queryResult = 0;
-            if (!enabled && TryIsEnabled(radio, device, out current, out queryResult) && !current)
+            finally
             {
-                return;
+                if (reconnect)
+                {
+                    int connect = WPods.Nearby.NearbyNative.wpn_bt_connect_audio(address);
+                    if (connect < 0)
+                        Log.Warn("conn", $"stereo audio reconnect failed: 0x{connect:X8}");
+                }
             }
-            string details = enabled ? string.Empty : $" Profile-state query returned 0x{queryResult:X8}.";
-            throw new Win32Exception(unchecked((int)result),
-                $"Windows could not {(enabled ? "enable" : "disable")} Hands-Free Telephony for this device.{details}");
         }
         finally
         {

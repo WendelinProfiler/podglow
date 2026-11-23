@@ -175,8 +175,20 @@ internal sealed class RadioLink : IDisposable
                 urb = new Urb { Seq = seq, Pipe = 0, In = dir == 1, Length = length, Data = withSetup };
                 if (header[40] == 0x20)
                 {
-                    _hci.RewriteCommand(withSetup.AsSpan(8));
                     urb.Held = _hci.OnCommand(data);
+                    if (_hci.TryRewriteMouseRenewal(data, out byte[] renewed))
+                    {
+                        var translated = new byte[8 + renewed.Length];
+                        withSetup.AsSpan(0, 8).CopyTo(translated);
+                        System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(translated.AsSpan(6), (ushort)renewed.Length);
+                        renewed.CopyTo(translated, 8);
+                        // The policy copies only the address. Erase discarded key
+                        // bytes from both old buffers without inspecting them.
+                        System.Security.Cryptography.CryptographicOperations.ZeroMemory(data.AsSpan(9));
+                        System.Security.Cryptography.CryptographicOperations.ZeroMemory(withSetup.AsSpan(17));
+                        urb.AcceptedOutLength = length; urb.Length = (uint)renewed.Length; urb.Data = translated;
+                    }
+                    else _hci.RewriteCommand(withSetup.AsSpan(8));
                 }
             }
             else
@@ -251,7 +263,7 @@ internal sealed class RadioLink : IDisposable
     }
 
     // The service's own ACL packets join Windows' on the ACL OUT pipe, in order.
-    private void SendInternal(Urb urb) => Queue(_aclOut).Add(urb);
+    private void SendInternal(Urb urb) => Queue(urb.InternalCommand?(byte)0:_aclOut).Add(urb);
 
     private BlockingCollection<Urb> Queue(byte pipe) => _queues.GetOrAdd(pipe, StartWorker);
 
@@ -288,6 +300,7 @@ internal sealed class RadioLink : IDisposable
                 }
                 if (u.Internal)
                 {
+                    if(u.InternalCommand){WriteInternalCommand(u);continue;}
                     // Ours wait without blocking Windows' packets: while Windows is mid-PDU on the link, while the
                     // controller has no buffers, and behind earlier ones of ours.
                     if (deferred.Count > 0 || _hci.MustDefer((int)u.Seq) || !WriteInternal(u))
@@ -379,6 +392,19 @@ internal sealed class RadioLink : IDisposable
         }
         return true;
     }
+    private void WriteInternalCommand(Urb u)
+    {
+        if(u.Data.Length<11||!_hci.LinkExists((int)u.Seq))return;
+        ushort opcode=BinaryPrimitives.ReadUInt16LittleEndian(u.Data.AsSpan(8));
+        long start=Environment.TickCount64;
+        while(!_hci.BeginOwnPhysicalCommand(opcode,(int)u.Seq))
+        {
+            if(u.Cancelled||Environment.TickCount64-start>1500){_hci.OwnCommandFailed(opcode,(int)u.Seq);return;}
+            Thread.Sleep(10);
+        }
+        var(status,got,_)=Control(u);
+        if(status!=0||got!=u.Length)_hci.OwnCommandFailed(opcode,(int)u.Seq);
+    }
 
     private void Execute(byte pipe, Urb u)
     {
@@ -391,7 +417,15 @@ internal sealed class RadioLink : IDisposable
         bool ended = false;
         if (pipe == 0)
         {
-            (status, got, result) = Control(u);
+            bool commandSlot=true;
+            if(u.Data.Length>=11&&u.Data[0]==0x20)
+            {
+                ushort opcode=BinaryPrimitives.ReadUInt16LittleEndian(u.Data.AsSpan(8));long start=Environment.TickCount64;
+                while(!(commandSlot=_hci.BeginWindowsPhysicalCommand(opcode)))
+                {if(u.Cancelled||Environment.TickCount64-start>1500)break;Thread.Sleep(5);}
+            }
+            if(commandSlot)(status, got, result) = Control(u);
+            else status=-110; // Never overlap a timed-out own command with Windows'.
             // Successful HCI commands are logged by the proxy.
             if (u.Data[0] != 0x20 || status != 0)
             {
@@ -443,7 +477,8 @@ internal sealed class RadioLink : IDisposable
             }
             u.Completed = true;
             // actual_length of an OUT transfer stays as the device reported it; only IN data may have been filtered.
-            Send(UsbIp.Ret(u.Seq, status, u.In ? (uint)result.Length : got, u.In ? result : []));
+            uint accepted = status == 0 && got == u.Length && u.AcceptedOutLength is { } virtualLength ? virtualLength : got;
+            Send(UsbIp.Ret(u.Seq, status, u.In ? (uint)result.Length : accepted, u.In ? result : []));
             _live.TryRemove(u.Seq, out _);
         }
     }

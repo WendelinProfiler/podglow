@@ -35,6 +35,121 @@ internal sealed class HciProxy
     // Guards all state below; Monitor.Wait/PulseAll on it for controller buffers.
     private readonly object _gate = new();
     private readonly Dictionary<int, Link> _links = [];
+    private readonly MouseBondRenewal _mouseRenewal = new();
+    private readonly MouseNegotiationTrace _mouseTrace = new();
+    private readonly HciCommandOwnership _commandOwner=new();
+    private int _ownCommandHandle=-1;
+    internal bool BeginWindowsPhysicalCommand(ushort opcode){lock(_gate)return _commandOwner.BeginWindows(opcode);}
+    internal bool BeginOwnPhysicalCommand(ushort opcode,int handle)
+    {lock(_gate){if(!_links.ContainsKey(handle)||!_commandOwner.BeginOwn(opcode))return false;_ownCommandHandle=handle;return true;}}
+    internal void OwnCommandFailed(ushort opcode,int handle)
+    {
+        lock(_gate)
+        {
+            _commandOwner.AbortOwn(opcode);
+            if(_links.TryGetValue(handle,out Link? link)){if(opcode==0x0411)link.DirectAuthRequested=false;else link.DirectEncryptRequested=false;}
+            Log.Warn("mouse",$"direct HID security command 0x{opcode:X4} was not completed");
+        }
+    }
+    private void EnsureDirectSecurityLocked(Link link)
+    {
+        if(link.DirectMouse is null||link.Encrypted)return;
+        ushort opcode;
+        byte[] payload;
+        if(!link.DirectAuthenticated){if(link.DirectAuthRequested)return;link.DirectAuthRequested=true;opcode=0x0411;payload=[(byte)link.Handle,(byte)(link.Handle>>8)];}
+        else{if(link.DirectEncryptRequested)return;link.DirectEncryptRequested=true;opcode=0x0413;payload=[(byte)link.Handle,(byte)(link.Handle>>8),1];}
+        byte[] transfer=new byte[11+payload.Length];transfer[0]=0x20;transfer[6]=(byte)(3+payload.Length);
+        BinaryPrimitives.WriteUInt16LittleEndian(transfer.AsSpan(8),opcode);transfer[10]=(byte)payload.Length;payload.CopyTo(transfer,11);
+        _send?.Invoke(new Urb{Internal=true,InternalCommand=true,Data=transfer,Length=(uint)(3+payload.Length),Seq=(uint)link.Handle});
+        Log.Info("mouse",$"direct HID security requested, opcode 0x{opcode:X4}");
+    }
+    internal bool ArmMouseRenewal(ulong address, bool windowsOwnsSecurity = false)
+    {
+        lock (_gate) {
+            long now=Environment.TickCount64;int handle=FindLinkLocked(address)?.Handle??-1;
+            bool armed=_mouseRenewal.Arm(address,now,authorized:true,handle,windowsOwnsSecurity);
+            if(armed)_mouseTrace.Arm(address,now,handle);
+            return armed;
+        }
+    }
+    internal MouseBondRenewal.Snapshot MouseRenewalStatus()
+    {
+        lock (_gate) return _mouseRenewal.Status(Environment.TickCount64);
+    }
+    internal bool TryRewriteMouseRenewal(ReadOnlySpan<byte> command, out byte[] replacement)
+    {
+        lock (_gate) return _mouseRenewal.TryRewrite(command, Environment.TickCount64, out replacement);
+    }
+    internal int ActivateMouseTouch(ulong address)
+    {
+        lock (_gate)
+        {
+            if(FindLinkLocked(address) is {Encrypted:true,DirectMouse:null} paired
+                && !_mouseRenewal.WindowsOwnsSecurity(Environment.TickCount64))
+            {
+                using var key=Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\GlideMouse\Handoff");
+                if(key?.GetValue("DirectHidTarget") is long target&&unchecked((ulong)target)==address)
+                {
+                    // Keep the already authenticated ACL from Windows pairing.
+                    // Reconnecting it needlessly restarts authentication and
+                    // can create an unsolicited incoming pairing notification.
+                    paired.DirectMouse=new();
+                    paired.DirectAuthenticated=true;
+                    paired.DirectMouse.Start(Environment.TickCount64);
+                    _ = TickDirectMouseAsync(paired);
+                    Log.Info("mouse","Direct HID adopted the existing encrypted Windows pairing link");
+                }
+            }
+            if(FindLinkLocked(address) is {DirectMouse: { } direct} owned)
+            {
+                if(!owned.Encrypted){EnsureDirectSecurityLocked(owned);return 170;}
+                direct.Start(Environment.TickCount64);direct.Tick(Environment.TickCount64);DrainDirectMouseLocked(owned);
+                return direct.Failed?31:0;
+            }
+            if(FindLinkLocked(address) is not {MouseTouch: { } touch} link||_send is null)return 1167;
+            touch.Expire(Environment.TickCount64);
+            if(touch.Confirmed)return 0;
+            if(!touch.Begin(Environment.TickCount64))return 170;
+            SendL2capLocked(link,touch.RemoteCid,MouseTouchActivation.EnableReport);
+            Log.Info("mouse","Requested multitouch on configured mouse through its existing HID control channel");
+            return 0;
+        }
+    }
+    private void DrainDirectMouseLocked(Link link)
+    {
+        if(link.DirectMouse is not { } mouse)return;
+        foreach(var packet in mouse.TakeOutput())
+        {Log.Info("mouse",$"direct HID out cid 0x{packet.Cid:X4}, kind 0x{packet.Payload[0]:X2}, bytes {packet.Payload.Length}");SendL2capLocked(link,packet.Cid,packet.Payload);}
+    }
+    private async Task TickDirectMouseAsync(Link link)
+    {
+        while(true)
+        {
+            await Task.Delay(200).ConfigureAwait(false);
+            lock(_gate)
+            {
+                if(!_links.TryGetValue(link.Handle,out Link? current)||current!=link||link.DirectMouse is not {Failed:false,Released:false} mouse)return;
+                mouse.Tick(Environment.TickCount64);DrainDirectMouseLocked(link);
+            }
+        }
+    }
+    internal int AllowMouseDisconnect(ulong address)
+    {
+        lock(_gate){if(FindLinkLocked(address) is { } link)link.DirectDisconnectUntil=Environment.TickCount64+5000;return 0;}
+    }
+    internal (int Handle,int Flags) DirectMouseStatus(ulong address)
+    {
+        lock(_gate){var link=FindLinkLocked(address);return link is {DirectMouse:{ } mouse}?(link.Handle,(link.Encrypted?1:0)|(mouse.Ready&&!mouse.Failed?2:0)):(-1,0);}
+    }
+    internal int ReleaseMouseForPeer(ulong address)
+    {
+        lock(_gate)
+        {
+            if(FindLinkLocked(address) is not { } link)return 1167;
+            if(!link.Encrypted||link.DirectMouse is not { } mouse||!mouse.ReleaseForPeer())return 50;
+            DrainDirectMouseLocked(link);Log.Info("mouse","direct HID virtual cable released for host handoff");return 0;
+        }
+    }
     private Action<Urb>? _send;
     private int _aclBuffers;
     private int _aclMaxLength = 1021;
@@ -45,7 +160,7 @@ internal sealed class HciProxy
     private readonly byte[] _event = new byte[257];
     private int _eventHave;
     private readonly ByteQueue _eventsOut = new();
-    private readonly byte[] _aclHead = new byte[16];
+    private readonly byte[] _aclHead = new byte[20];
     private int _aclHeadHave;
     private Route _aclRoute;
     private int _aclRemaining;
@@ -170,6 +285,7 @@ internal sealed class HciProxy
         }
         bool held = false;
         ushort opcode = BinaryPrimitives.ReadUInt16LittleEndian(command);
+        lock(_gate) { var trace=_mouseTrace.Command(command,Environment.TickCount64);if(trace is not null)Log.Info("mouse-pairing",trace); }
         // Vendor commands (OGF 0x3F) may be answered outside the event pipe (Intel's bootloader answers on the bulk pipe,
         // MediaTek's WMT commands through a vendor request): they are not timed.
         if (opcode >> 10 != 0x3F)
@@ -370,13 +486,18 @@ internal sealed class HciProxy
         {
             if (pb != 1)
             {
+                if(head.Length>=8&&head.Length==total&&link.MouseTouch is { } touch)
+                    touch.Observe(head[4..],true,Environment.TickCount64);
                 link.InboundOurs = false;
                 if (head.Length >= 8)
                 {
                     ushort cid = BinaryPrimitives.ReadUInt16LittleEndian(head[6..]);
                     link.InboundOurs = (link.Aap is { } ch && cid == ch.LocalCid) || (link.Decline is { } decline && cid == decline.LocalCid)
+                        || (link.DirectMouse is { } direct&&direct.OwnCid(cid))
                         || (cid == 0x0001 && SignalingIsOursLocked(link, head[8..]))
-                        || (cid == 0x0001 && (link.Aap is not null || link.Decline is not null || link.Ids.Count > 0) && HasSeveralCommands(head));
+                        || (cid == 0x0001 && (link.Aap is not null || link.Decline is not null || link.DirectMouse is not null || link.Ids.Count > 0) && HasSeveralCommands(head));
+                    if(head.Length==total&&link.MouseTouch is { } mouse&&mouse.Handshake(head[4..],Environment.TickCount64))
+                    {link.InboundOurs=true;link.MouseHandshakeConsumed=true;Monitor.PulseAll(_gate);}
                     if (cid == 0x0001 && !link.InboundOurs && link.Ids.Count > 0 && head.Length >= 10)
                     {
                         Log.Info("aap", $"{link.Address:X12}: signaling 0x{head[8]:X2} id 0x{head[9]:X2} for Windows while ours wait ({link.Ids.Count})");
@@ -407,7 +528,8 @@ internal sealed class HciProxy
         if (_aclRoute == Route.Ours && _links.TryGetValue(_aclHandle, out Link? link))
         {
             ReadOnlySpan<byte> payload = _aclOurs.AsSpan(4, _aclOursHave - 4);
-            if (((_aclOurs[1] >> 4) & 3) != 1)
+            if(link.MouseHandshakeConsumed){link.MouseHandshakeConsumed=false;}
+            else if (((_aclOurs[1] >> 4) & 3) != 1)
             {
                 StartPduLocked(link, payload);
             }
@@ -516,6 +638,18 @@ internal sealed class HciProxy
     {
         lock (_gate)
         {
+            // HID control transactions are ordered. Do not let a Windows
+            // request overtake our one bounded SET_REPORT handshake.
+            bool waiting;
+            do {
+                waiting=false;
+                ForEachPacket(packets,(handle,pb,payload)=>{
+                    if(pb==1||payload.Length<4||!_links.TryGetValue(handle,out Link? link)||link.MouseTouch is not { } touch)return;
+                    touch.Expire(Environment.TickCount64);
+                    if(BinaryPrimitives.ReadUInt16LittleEndian(payload[2..])==touch.RemoteCid&&touch.PendingUntil!=0)waiting=true;
+                });
+                if(waiting){if(cancelled())return false;Monitor.Wait(_gate,50);}
+            }while(waiting);
             long waitStart = 0;
             long stalledAt = 0;
             while (true)
@@ -593,6 +727,7 @@ internal sealed class HciProxy
             }
             if (!ours)
             {
+                if(pb!=1)link.MouseTouch?.Observe(payload,false,Environment.TickCount64);
                 // Track Windows' L2CAP PDU so ours are not sent between its fragments.
                 if (pb != 1 && payload.Length >= 2)
                 {
@@ -873,6 +1008,14 @@ internal sealed class HciProxy
     private byte[]? OnEventLocked(byte[] e)
     {
         LogEvent(e);
+        if(_commandOwner.Acknowledge(e,out ushort completed,out byte commandStatus))
+        {
+            Log.Info("mouse",$"direct HID security acknowledgement 0x{completed:X4}, status {commandStatus}");
+            if(commandStatus!=0)OwnCommandFailed(completed,_ownCommandHandle);
+            return null;
+        }
+        var mouseTrace=_mouseTrace.Event(e,Environment.TickCount64);if(mouseTrace is not null)Log.Info("mouse-pairing",mouseTrace);
+        _mouseRenewal.Observe(e, Environment.TickCount64);
         if (e[0] is 0x0E or 0x0F)
         {
             Volatile.Write(ref _commandSentAt, 0);
@@ -930,7 +1073,24 @@ internal sealed class HciProxy
                     int handle = BinaryPrimitives.ReadUInt16LittleEndian(e.AsSpan(3)) & 0x0FFF;
                     ulong address = ReadAddress(e.AsSpan(5));
                     var link = new Link(handle, address, le: false);
+                    using(var mouseKey=Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\GlideMouse\Handoff"))
+                        if(mouseKey?.GetValue("RenewalTarget") is long selected&&unchecked((ulong)selected)==address)
+                        {
+                            link.MouseTouch=new();
+                            if(mouseKey.GetValue("DirectHidTarget") is long own&&unchecked((ulong)own)==address)
+                            {
+                                string? owner=mouseKey.GetValue("DirectOwnerSid") as string;
+                                bool released=owner is not null&&mouseKey.GetValue($"{address:X12}.{owner}") is int hold&&hold==1;
+                                bool claiming=_mouseRenewal.Status(Environment.TickCount64).State is MouseBondRenewal.Stage.Armed or MouseBondRenewal.Stage.Pairing;
+                                // PairAsync owns authentication until its fresh bond
+                                // settles. Starting our own 0x0411 here races it.
+                                bool windowsPairing=_mouseRenewal.WindowsOwnsSecurity(Environment.TickCount64);
+                                if((!released||claiming)&&!windowsPairing)link.DirectMouse=new();
+                                if(windowsPairing)Log.Info("mouse","Windows pairing owns this link; direct HID authentication deferred");
+                            }
+                        }
                     _links[handle] = link;
+                    if(link.DirectMouse is not null)EnsureDirectSecurityLocked(link);
                     Log.Info("hci", $"ACL link 0x{handle:X3} to {address:X12}");
                     PrepareDeclineLocked(link);
                     break;
@@ -969,6 +1129,13 @@ internal sealed class HciProxy
                     }
                     break;
                 }
+            case 0x06 when e.Length>=5:
+                {
+                    int handle=BinaryPrimitives.ReadUInt16LittleEndian(e.AsSpan(3))&0x0FFF;
+                    if(_links.TryGetValue(handle,out Link? link)&&link.DirectMouse is not null)
+                    {link.DirectAuthenticated=e[2]==0;link.DirectAuthRequested=false;if(link.DirectAuthenticated)EnsureDirectSecurityLocked(link);}
+                    break;
+                }
             case 0x08 or 0x59 when e.Length >= 6 && e[2] == 0:
                 {
                     int handle = BinaryPrimitives.ReadUInt16LittleEndian(e.AsSpan(3)) & 0x0FFF;
@@ -976,6 +1143,8 @@ internal sealed class HciProxy
                     {
                         bool was = link.Encrypted;
                         link.Encrypted = e[5] != 0;
+                        if(!was&&link.Encrypted&&link.DirectMouse is { } direct)
+                        {direct.Start(Environment.TickCount64);DrainDirectMouseLocked(link);_ = TickDirectMouseAsync(link);}
                         if (!was && link.Encrypted && link.Aap is { RequestSent: false } ch)
                         {
                             ConnectLocked(ch);
@@ -1080,6 +1249,9 @@ internal sealed class HciProxy
     // answers on the bulk pipe).
     private void ResetLocked(string why, bool dropQueued = false)
     {
+        _mouseRenewal.Reset();
+        _mouseTrace.Reset();
+        _commandOwner.Reset();_ownCommandHandle=-1;
         _scoLinks.Clear();
         foreach (Link link in _links.Values)
         {
@@ -1173,6 +1345,7 @@ internal sealed class HciProxy
 
     private bool SignalingIsOursLocked(Link link, ReadOnlySpan<byte> sig)
     {
+        if(link.DirectMouse?.OwnSignal(sig,prefix:true)==true)return true;
         if (sig.Length < 4)
         {
             return false;
@@ -1302,6 +1475,19 @@ internal sealed class HciProxy
         {
             OnDeclineFrameLocked(link, decline, pdu.AsSpan(4));
         }
+        else if(link.DirectMouse is { } mouse&&mouse.OwnCid(cid))
+        {
+            bool ready=mouse.Ready;ulong reports=mouse.InputReports;ulong battery=mouse.BatterySequence;
+            if(cid==mouse.ControlCid&&pdu.Length==5)Log.Info("mouse",$"direct HID control acknowledgement 0x{pdu[4]:X2}");
+            mouse.Data(cid,pdu.AsSpan(4),Environment.TickCount64);DrainDirectMouseLocked(link);
+            if(mouse.BatterySequence!=battery) {
+                ulong address=link.Address;int percent=mouse.BatteryPercent;
+                // Keep profile I/O off the input/ACL lock.
+                _=Task.Run(()=>MouseBatteryPublication.Publish(address,percent));
+            }
+            if(!ready&&mouse.Ready)Log.Info("mouse","direct HID multitouch confirmed");
+            if(reports==0&&mouse.InputReports>0)Log.Info("mouse","direct HID first validated mouse report received");
+        }
         else
         {
             Log.Info("aap", $"dropped PDU cid 0x{cid:X4} ({pdu.Length - 4} bytes): no open channel");
@@ -1311,6 +1497,8 @@ internal sealed class HciProxy
     // Only for commands SignalingIsOursLocked accepted (at least 4 bytes).
     private void OnSignalingLocked(Link link, ReadOnlySpan<byte> sig)
     {
+        if(link.DirectMouse is { } mouse&&mouse.OwnSignal(sig))
+        {Log.Info("mouse",$"direct HID signaling 0x{sig[0]:X2} id 0x{sig[1]:X2}");mouse.SignalInput(sig,Environment.TickCount64);DrainDirectMouseLocked(link);return;}
         byte code = sig[0];
         byte id = sig[1];
         ReadOnlySpan<byte> d = sig[4..];
@@ -1673,7 +1861,7 @@ internal sealed class HciProxy
     // Commands whose parameters hold a key: Link_Key / PIN_Code request replies, Remote_OOB_(Extended_)Data request
     // replies, LE_Encrypt, LE_Enable_Encryption, LE_Long_Term_Key_Request_Reply, LE_Add_Device_To_Resolving_List (IRKs).
     private static bool CarriesKey(ushort opcode) =>
-        opcode is 0x040B or 0x040D or 0x0430 or 0x0445 or 0x2017 or 0x2019 or 0x201A or 0x2027;
+        opcode is 0x040B or 0x040D or 0x042E or 0x0430 or 0x0445 or 0x0C11 or 0x2017 or 0x2019 or 0x201A or 0x2027;
 
     // Skips advertising reports and Number_Of_Completed_Packets. Failed commands and link events (connection,
     // disconnection, encryption, hardware error, role change, call audio) always log; the rest via FirstOfKind.
@@ -1685,7 +1873,7 @@ internal sealed class HciProxy
             return;
         }
         // Return_Link_Keys, Link_Key_Notification, LE Generate_DHKey_Complete.
-        bool secret = e[0] is 0x15 or 0x18 || (e[0] == 0x3E && e.Length >= 3 && e[2] == 0x09);
+        bool secret = e[0] is 0x15 or 0x18 or 0x33 or 0x3B || (e[0] == 0x3E && e.Length >= 3 && e[2] == 0x09);
         if (e[0] == 0x0E && e.Length >= 6)
         {
             ushort opcode = BinaryPrimitives.ReadUInt16LittleEndian(e.AsSpan(3));
@@ -1767,6 +1955,11 @@ internal sealed class HciProxy
     /// <summary>One ACL link (BR/EDR, or LE when <see cref="Le"/>) as the controller reported it.</summary>
     internal sealed class Link(int handle, ulong address, bool le)
     {
+        public MouseTouchActivation? MouseTouch;
+        public DirectMouseHid? DirectMouse;
+        public bool DirectAuthenticated,DirectAuthRequested,DirectEncryptRequested;
+        public long DirectDisconnectUntil;
+        public bool MouseHandshakeConsumed;
         public int Handle { get; } = handle;
         public ulong Address { get; } = address;
         public bool Le { get; } = le;

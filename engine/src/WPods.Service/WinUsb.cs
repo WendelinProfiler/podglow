@@ -14,6 +14,9 @@ internal sealed class Urb
     public byte Pipe;
     public bool In;
     public uint Length;
+    // A deliberately translated control OUT request may have a shorter physical
+    // payload. Report the accepted virtual length only on a full successful write.
+    public uint? AcceptedOutLength;
     /// <summary>OUT data; for control transfers the 8-byte setup packet first.</summary>
     public byte[] Data = [];
     public volatile bool Cancelled;
@@ -29,6 +32,7 @@ internal sealed class Urb
     public bool Held;
     /// <summary>The service's own ACL OUT packets (one L2CAP PDU, already fragmented); no RET goes to Windows.</summary>
     public bool Internal;
+    public bool InternalCommand;
     public byte[][]? Fragments;
 }
 
