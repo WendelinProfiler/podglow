@@ -1,3 +1,24 @@
+# Podglow 0.1.9 experimental alpha
+
+Fixes the in-app update handoff on Windows. A downloaded installer previously
+remained open for writing while Windows tried to execute it, causing sharing
+violation 32 after a successful download and checksum verification.
+
+The updater now reopens the file read-only, verifies its size and SHA-256 again
+under that final lock, and keeps the lock through launch. The second verification
+rejects replacement between the download handle and the final handle. Installer
+launch errors are reported separately from download or verification failures.
+
+44 updater regression checks pass, including launching a harmless Windows image
+while the final download lock remains held. The previous public installer also
+passed a live GitHub download, redirect, size and SHA-256 check. No installer was
+executed by these tests. Clean-machine update installation remains unverified.
+
+Users affected by the old updater must download and start Podglow-Setup.exe from
+this release manually once; the old running updater cannot repair its own lock.
+The stereo-call and optional GlideMouse integration changes from 0.1.8 are included.
+
+---
 # Podglow 0.1.8 experimental alpha
 
 This release includes the matching Bluetooth-service support for GlideMouse 0.2.0

@@ -1,5 +1,5 @@
 param(
- [string]$Version='0.1.8',
+ [string]$Version='0.1.9',
  [string]$ReleaseTag,
  [string]$DotNet='dotnet',
  [Parameter(Mandatory)][string]$InnoUnpacker,

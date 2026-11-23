@@ -79,6 +79,22 @@ try
     DownloadTest("redirect loop bounded", _ => new(System.Net.HttpStatusCode.Redirect) { Headers = { Location = package.Download } }, package, true);
     int redirects = 0;
     DownloadTest("official CDN redirect verified", _ => redirects++ == 0 ? new(System.Net.HttpStatusCode.Redirect) { Headers = { Location = new Uri("https://release-assets.githubusercontent.com/file?signature=test") } } : Bytes(payload), package, false);
+    // Windows cannot execute an image with a writable file handle still open.
+    // Exercise the actual DownloadAsync result, not just its checksum helpers.
+    byte[] executable = File.ReadAllBytes(Path.Combine(Environment.SystemDirectory, "cmd.exe"));
+    var launchPackage = package with { Size = executable.Length, Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(executable)) };
+    string launchFile = Path.Combine(temp, "launch-probe.exe");
+    try
+    {
+        using var client = new HttpClient(new FakeHttp(_ => Bytes(executable)));
+        using FileStream verified = CompanionUpdater.DownloadAsync(launchPackage, launchFile, _ => { }, CancellationToken.None, client).GetAwaiter().GetResult();
+        Equal(false, verified.CanWrite);
+        using var child = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(launchFile, "/d /c exit 0") { UseShellExecute = false, CreateNoWindow = true }) ?? throw new Exception("Verified image did not launch");
+        if (!child.WaitForExit(10000)) { child.Kill(); throw new Exception("Launch probe timed out"); }
+        Equal(0, child.ExitCode);
+        Console.WriteLine("PASS verified executable launches while final read-only lock remains held"); passed++;
+    }
+    finally { File.Delete(launchFile); }
 }
 finally { Directory.Delete(temp); }
 if (args.Contains("--live", StringComparer.OrdinalIgnoreCase))

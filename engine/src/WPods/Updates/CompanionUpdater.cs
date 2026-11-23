@@ -112,8 +112,8 @@ internal static partial class CompanionUpdater
             response.EnsureSuccessStatusCode();
             if (response.Content.Headers.ContentLength is { } length && length != release.Size) throw new InvalidDataException("Download size does not match the release.");
             using Stream source = await response.Content.ReadAsStreamAsync(cancellation).ConfigureAwait(false);
-            // The same file handle stays open through hashing and UAC handoff. Other processes
-            // cannot write, delete or replace the verified file while it is being launched.
+            // A writable handle prevents Windows from mapping an EXE (sharing violation).
+            // After downloading, reopen read-only and verify again under the final lock.
             var target = new FileStream(file, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read, 65536, FileOptions.Asynchronous);
             try
             {
@@ -133,8 +133,19 @@ internal static partial class CompanionUpdater
                 if (total != release.Size || !CryptographicOperations.FixedTimeEquals(sha.GetHashAndReset(), Convert.FromHexString(release.Sha256)))
                     throw new InvalidDataException("Download checksum does not match the release.");
                 await target.FlushAsync(cancellation).ConfigureAwait(false);
-                target.Position = 0;
-                return target;
+                target.Dispose();
+                var verified = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, FileOptions.Asynchronous);
+                try
+                {
+                    // Recheck after reopening: a replacement during the handle transition
+                    // must never inherit the successful check of the downloaded bytes.
+                    byte[] digest = await SHA256.HashDataAsync(verified, cancellation).ConfigureAwait(false);
+                    if (verified.Length != release.Size || !CryptographicOperations.FixedTimeEquals(digest, Convert.FromHexString(release.Sha256)))
+                        throw new InvalidDataException("Installer changed before launch.");
+                    verified.Position = 0;
+                    return verified;
+                }
+                catch { verified.Dispose(); throw; }
             }
             catch { target.Dispose(); throw; }
         }
@@ -224,6 +235,7 @@ internal static partial class CompanionUpdater
             string folder = Path.Combine(Folder, Guid.NewGuid().ToString("N"));
             string file = Path.Combine(folder, ReleasePolicy.AssetName);
             bool launched = false;
+            bool downloadVerified = false;
             CancellationToken token = _cancel.Token;
             try
             {
@@ -231,6 +243,7 @@ internal static partial class CompanionUpdater
                 _status.Text = "Downloading and verifying the installer…";
                 var progress = new Progress<int>(value => { if (!IsDisposed) _progress.Value = value; });
                 using FileStream verified = await DownloadAsync(_release, file, value => ((IProgress<int>)progress).Report(value), token);
+                downloadVerified = true;
                 token.ThrowIfCancellationRequested();
                 if (IsDisposed) return;
                 // Interactive installer only. Never bypass Bluetooth consent or reboot Windows.
@@ -242,7 +255,9 @@ internal static partial class CompanionUpdater
             catch (Win32Exception e) when (e.NativeErrorCode == 1223) { if (!IsDisposed) _status.Text = "Administrator permission was cancelled. No update was started."; }
             catch (OperationCanceledException) { if (!IsDisposed) _status.Text = "Download cancelled. No update was started."; }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or HttpRequestException or InvalidDataException or Win32Exception)
-            { if (!IsDisposed) _status.Text = "The installer could not be downloaded or verified. No update was started. Please try again."; }
+            { if (!IsDisposed) _status.Text = downloadVerified
+                ? "The installer was verified, but Windows could not start it. No update was started. You can download it from Release notes."
+                : "The installer could not be downloaded or verified. No update was started. Please try again."; }
             finally
             {
                 _busy = false;
