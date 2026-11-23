@@ -74,6 +74,44 @@ internal static unsafe partial class RadioDriver
 
     public static bool IsPresent(string instanceId) => CM_Locate_DevNode(out _, instanceId, 0) == 0;
 
+    internal static RadioStartState StartState(string instanceId, out uint problem)
+    {
+        problem = 0;
+        bool present = CM_Locate_DevNode(out uint dev, instanceId, 0) == 0;
+        uint status = 0;
+        if (present && CM_Get_DevNode_Status(out status, out problem, dev, 0) != 0)
+        {
+            present = false;
+        }
+        return RadioStartPolicy.Classify(present, status, problem);
+    }
+
+    internal static string VirtualInstance(string physicalInstance, string serial) =>
+        physicalInstance[..physicalInstance.LastIndexOf('\\')] + @"\" + serial;
+
+    // Only the dedicated USB/IP emulator, never a physical USB hub/controller.
+    internal static string? VirtualController()
+    {
+        using RegistryKey? root = Registry.LocalMachine.OpenSubKey($@"{EnumKey}\ROOT");
+        string? found = null;
+        foreach (string device in root?.GetSubKeyNames() ?? [])
+        {
+            using RegistryKey? group = root!.OpenSubKey(device);
+            foreach (string instance in group?.GetSubKeyNames() ?? [])
+            {
+                string id = $@"ROOT\{device}\{instance}";
+                using RegistryKey? key = group!.OpenSubKey(instance);
+                if (key?.GetValue("HardwareID") is not string[] ids
+                    || !ids.Contains(@"ROOT\USBIP_WIN2\UDE", StringComparer.OrdinalIgnoreCase)
+                    || !string.Equals(key.GetValue("Service") as string, "usbip2_ude", StringComparison.OrdinalIgnoreCase)
+                    || !IsPresent(id)) continue;
+                if (found is not null) return null;
+                found = id;
+            }
+        }
+        return found;
+    }
+
     /// <summary>Turned off in Device Manager (CM_PROB_DISABLED).</summary>
     public static bool IsDisabled(string instanceId) =>
         CM_Locate_DevNode(out uint dev, instanceId, 0) == 0
@@ -82,6 +120,57 @@ internal static unsafe partial class RadioDriver
 
     public static bool IsOnWinUsb(string instanceId) =>
         string.Equals(GetService(instanceId), "WinUSB", StringComparison.OrdinalIgnoreCase);
+
+    internal static bool NeedsUsbPcapReenumeration(string instanceId)
+    {
+        // Only the configured physical radio. USBPcap dynamically filters hub children;
+        // changing the function driver can remove its child filter while retaining the
+        // PDO in the hub's previousChildren cache. Re-enumeration creates a fresh PDO.
+        if (CM_Locate_DevNode(out uint dev, instanceId, 0) != 0) return false;
+        if (CM_Get_Parent(out uint hub, dev, 0) != 0 || GetInstanceId(hub) is not { } hubId) return false;
+        using RegistryKey? key = Registry.LocalMachine.OpenSubKey($@"{EnumKey}\{hubId}");
+        return key?.GetValue("UpperFilters") is string[] filters
+            && filters.Contains("USBPcap", StringComparer.OrdinalIgnoreCase);
+    }
+
+    internal static bool NativeRadioReady(string instanceId) =>
+        StartState(instanceId, out _) == RadioStartState.Ready
+        && !IsOnWinUsb(instanceId)
+        && GetInterfaces(RadioInterface).Any(path => string.Equals(
+            GetInterfaceInstance(path), instanceId, StringComparison.OrdinalIgnoreCase));
+
+    internal static bool PrepareIntelFirmware(string instanceId, CancellationToken stop)
+    {
+        // A volatile registry key survives a service restart, but not a Windows boot.
+        // The Intel firmware loader must see the physical chip before WinUSB takes it.
+        using RegistryKey boot = Registry.LocalMachine.CreateSubKey(StateKey + @"\BootFirmware",
+            writable: true, RegistryOptions.Volatile);
+        string name = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(instanceId.ToUpperInvariant())));
+        if (!IntelBootstrapPolicy.Required(instanceId, boot.GetValue(name) is int value && value == 1)) return true;
+        if (IsDisabled(instanceId)) return false;
+        Log.Info("radio", "initializing Intel firmware on the physical radio before USB/IP takeover");
+        if (IsOnWinUsb(instanceId))
+        {
+            bool restart = RestoreNative(instanceId);
+            if (restart || NeedsRestart(instanceId))
+            {
+                if (!CyclePort(instanceId)) return false;
+            }
+        }
+        for (int i = 0; i < 120 && !stop.IsCancellationRequested; i++)
+        {
+            if (NativeRadioReady(instanceId))
+            {
+                boot.SetValue(name, 1, RegistryValueKind.DWord);
+                Log.Info("radio", "Intel physical radio initialized; handing it to the Podglow transport");
+                return true;
+            }
+            if (stop.WaitHandle.WaitOne(500)) break;
+        }
+        Log.Warn("radio", "Intel firmware initialization did not produce a started physical Bluetooth radio");
+        return false;
+    }
 
     /// <summary>New driver installed but not running (DN_NEED_RESTART), as something still has the adapter open.</summary>
     public static bool NeedsRestart(string instanceId) =>

@@ -42,6 +42,7 @@ internal sealed class Engine
     private bool _relaunched;
     private bool _suspended;
     private volatile bool _resumeRestart;
+    private int _virtualStartFailed;
     private RadioLink? _link;
     private IDisposable? _removedWatch;
     // Real adapter resets requested by the vendor driver, oldest first.
@@ -555,6 +556,25 @@ internal sealed class Engine
                 continue;
             }
             SetState(ServiceState.Starting, "");
+            if (Interlocked.Exchange(ref _virtualStartFailed, 0) != 0)
+            {
+                // A socket reconnect cannot repair a removed UDE PDO. This is bounded by the
+                // same three-failure guard below, and may never interrupt another app's imports.
+                Log.Warn("engine", "the virtual adapter did not start; checking the empty emulator before retry");
+                bool recovered = false;
+                try { recovered = UsbIpServer.RecoverEmptyController(); }
+                catch (Exception e) when (e is not OutOfMemoryException)
+                {
+                    Log.Error("radio", "virtual controller recovery failed", e);
+                }
+                if (!recovered)
+                {
+                    SetState(ServiceState.Unsupported, "virtual-adapter-start-failed");
+                    Interlocked.Exchange(ref _virtualStartFailed, 1);
+                    WaitRetry(Timeout.InfiniteTimeSpan);
+                    continue;
+                }
+            }
             DateTime started = DateTime.UtcNow;
             bool failed;
             try
@@ -603,6 +623,10 @@ internal sealed class Engine
             RadioDriver.StoredInstance = id;
             RadioDriver.RememberBound(id);
         }
+        if (!RadioDriver.PrepareIntelFirmware(id, _stop.Token))
+        {
+            throw new InvalidOperationException("Intel physical-radio firmware initialization failed");
+        }
         // Windows cannot restart an adapter onto WinUSB while it is open (e.g. audio playing): re-plug it in software,
         // else retry every 5 s. Waiting never trips the Guard, and a stop ends it before any further driver switch.
         bool replugged = false;
@@ -612,9 +636,15 @@ internal sealed class Engine
             {
                 return "service stopping";
             }
-            if (!RadioDriver.BindWinUsb(id) && !RadioDriver.NeedsRestart(id))
+            bool restartNeeded = RadioDriver.BindWinUsb(id);
+            bool rebindChildFilter = RadioDriver.NeedsUsbPcapReenumeration(id);
+            if (!restartNeeded && !RadioDriver.NeedsRestart(id) && !rebindChildFilter)
             {
                 break;
+            }
+            if (rebindChildFilter)
+            {
+                Log.Info("radio", "re-enumerating the Bluetooth USB port after its driver change to restore the scoped USBPcap child filter");
             }
             if (!replugged && !_stop.IsCancellationRequested && RadioDriver.CyclePort(id))
             {
@@ -737,8 +767,15 @@ internal sealed class Engine
                     current.Dispose();
                 }))
                 {
-                    SetState(ServiceState.Running, "");
-                    current.Run();
+                    using var sessionEnd = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token);
+                    Task health = Task.Run(() => WatchVirtualRadio(current,
+                        RadioDriver.VirtualInstance(id, device.Serial), sessionEnd.Token));
+                    try { current.Run(); }
+                    finally
+                    {
+                        sessionEnd.Cancel();
+                        health.GetAwaiter().GetResult();
+                    }
                 }
             }
         }
@@ -774,6 +811,42 @@ internal sealed class Engine
 
     // A fresh bus id per attach: usbip-win2 keeps retrying a broken import for a while, which must never match a new one.
     private string NextBusId() => $"1-{Interlocked.Increment(ref _busIds)}";
+
+    private void WatchVirtualRadio(RadioLink current, string instance, CancellationToken cancel)
+    {
+        long deadline = Environment.TickCount64 + 30_000;
+        bool started = false;
+        int unhealthy = 0;
+        while (!cancel.IsCancellationRequested && Volatile.Read(ref _link) == current)
+        {
+            RadioStartState state = RadioDriver.StartState(instance, out uint problem);
+            if (state == RadioStartState.Ready && _hci.Manufacturer is not null)
+            {
+                unhealthy = 0;
+                if (!started)
+                {
+                    started = true;
+                    Log.Info("radio", "Windows confirmed the virtual Bluetooth adapter is started and its HCI version was received");
+                    SetState(ServiceState.Running, "");
+                }
+            }
+            else if (state == RadioStartState.Disabled)
+            {
+                // Respect an explicit Device Manager disable; do not reset its parent.
+                SetState(ServiceState.Starting, "the virtual Bluetooth adapter is disabled in Device Manager");
+                return;
+            }
+            else if (!Volatile.Read(ref _suspended) && ((started && ++unhealthy >= 6) || Environment.TickCount64 >= deadline))
+            {
+                Log.Warn("radio", $"virtual adapter start/liveness failed: {state}, PnP problem {problem}");
+                SetState(ServiceState.Starting, "virtual-adapter-start-failed");
+                Interlocked.Exchange(ref _virtualStartFailed, 1);
+                current.Dispose();
+                return;
+            }
+            if (cancel.WaitHandle.WaitOne(500)) return;
+        }
+    }
 
     // WinUSB's device interface appears a moment after the bind.
     private static WinUsbDevice OpenRadio(string id, CancellationToken stop)

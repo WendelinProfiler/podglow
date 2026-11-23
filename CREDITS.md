@@ -34,3 +34,7 @@ The companion adds one shared native presentation with a standalone Windows tray
 ## Podglow icon artwork
 
 The device and listening-mode vectors in src/Shared/PodglowGlyphs.h were drawn for Podglow and are distributed under this project's GPL-3.0 license. They do not contain exported Apple font outlines. The public widget includes these icons by default; no Apple font download is required.
+
+## GlideMouse coexistence
+
+The optional mouse integration works with [GlideMouse](https://github.com/WendelinProfiler/GlideMouse) and its unmodified [USBPcap](https://github.com/desowin/usbpcap) dependency, created by Tomasz Mon and contributors. Podglow does not redistribute a modified USBPcap kernel driver or the proprietary Apple mouse driver. The USBPcap child-filter lifecycle informed the scoped re-enumeration fix; upstream ownership and licensing remain unchanged.

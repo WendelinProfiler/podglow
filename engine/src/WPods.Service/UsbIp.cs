@@ -234,6 +234,45 @@ internal sealed class UsbIpServer : IDisposable
 
     public static bool ClientInstalled => File.Exists(UsbipExe);
 
+    // A failed UDE device can leave the emulator referring to a removed PDO. Rebuild it only
+    // after our imports were detached, and refuse if another application owns any import.
+    internal static bool RecoverEmptyController()
+    {
+        string? controller = RadioDriver.VirtualController();
+        if (controller is null) return false;
+        var inspect = new ProcessStartInfo(UsbipExe)
+        {
+            UseShellExecute = false, CreateNoWindow = true,
+            RedirectStandardOutput = true, RedirectStandardError = true,
+        };
+        inspect.ArgumentList.Add("port");
+        using var p = Process.Start(inspect);
+        if (p is null) return false;
+        Task<string> output = p.StandardOutput.ReadToEndAsync();
+        Task<string> errors = p.StandardError.ReadToEndAsync();
+        if (!p.WaitForExit(15000)) { p.Kill(); return false; }
+        string text = output.GetAwaiter().GetResult();
+        if (!UsbImportPolicy.IsEmpty(p.ExitCode, text, errors.GetAwaiter().GetResult()))
+        {
+            Log.Warn("radio", "virtual controller recovery refused: imports are present or could not be verified");
+            return false;
+        }
+        var restart = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "pnputil.exe"))
+        {
+            UseShellExecute = false, CreateNoWindow = true,
+            RedirectStandardOutput = true, RedirectStandardError = true,
+        };
+        restart.ArgumentList.Add("/restart-device");
+        restart.ArgumentList.Add(controller);
+        using var r = Process.Start(restart);
+        if (r is null) return false;
+        Task<string> result = r.StandardOutput.ReadToEndAsync();
+        Task<string> failure = r.StandardError.ReadToEndAsync();
+        if (!r.WaitForExit(45000)) { r.Kill(); return false; }
+        Log.Info("radio", $"rebuilding empty USB/IP controller: exit {r.ExitCode}; {result.GetAwaiter().GetResult().Trim()} {failure.GetAwaiter().GetResult().Trim()}");
+        return r.ExitCode == 0;
+    }
+
     /// <summary>
     /// Unplugs the virtual device on usbip-win2's <paramref name="port"/>; closing the connection alone makes usbip-win2
     /// keep reconnecting it.

@@ -1,0 +1,26 @@
+name: Service regression checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Check startup, import, speed and updater policies
+        shell: pwsh
+        run: |
+          foreach ($test in 'IntelBootstrapPolicy','RadioStartPolicy','UsbImportPolicy','UsbSpeedPolicy','UpdaterPolicy') {
+            dotnet run --project "tests/$test" -c Release
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+      - name: Compile the Windows service
+        shell: pwsh
+        run: dotnet build engine/src/WPods.Service/WPods.Service.csproj -c Release -p:PublishReadyToRun=false

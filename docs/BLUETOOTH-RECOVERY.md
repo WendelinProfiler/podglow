@@ -6,7 +6,7 @@ Version 0.1.5 fixes a USB-speed translation bug. A Bluetooth radio with bulk end
 
 ## Updating an affected installation
 
-Install 0.1.5 first. If Bluetooth remains unavailable, its virtual USB/IP controller may still need a reset. Repeating a service restart alone did not clear that condition on the development machine.
+Install 0.1.6 or newer first. The service now verifies startup and can recover an empty virtual controller automatically. See [the startup notes](BLUETOOTH-STARTUP.md). If Bluetooth remains unavailable, its virtual USB/IP controller may still need a reset. Repeating a service restart alone did not clear that condition on the development machine.
 
 Save ongoing work and keep a touchpad or wired input available. The recovery step briefly disconnects Bluetooth devices and the virtual Podglow microphone. It does not restart Windows, change pairing keys or reset physical USB controllers.
 

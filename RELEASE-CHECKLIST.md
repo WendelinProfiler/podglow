@@ -1,6 +1,6 @@
 # Experimental alpha checklist
 
-## Prepared for 0.1.5-alpha.1
+## Prepared for 0.1.6-alpha.1
 
 - [x] Preserve complete modified WPods source and required third-party notices.
 - [x] Provide one shared native interface for the Windows tray and optional Island host.
@@ -25,7 +25,7 @@ These checks were deferred at the owner's request. Implementation or compilation
 - [ ] Verify actual rollback after interrupted installation or prerequisite failure.
 - [ ] Verify a complete installed upgrade, including the 0.1.0 to Podglow rename and administrator handoff.
 - [ ] Verify packaged connection, reconnection, listening modes and microphone routing.
-- [ ] Verify cold start, sign-in startup and post-restart Bluetooth recovery.
+- [x] Verify the runtime startup fixes on one Intel development system after a full Windows restart, including both mouse filters and fresh touch reports. This does not verify the newly packaged installer or other machines.
 - [ ] Verify battery caches with multiple real AirPods pairs.
 - [ ] Verify scaling and positioning across multiple monitors.
 - [ ] Test other computers, Bluetooth adapters and AirPods models.

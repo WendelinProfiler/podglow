@@ -1,7 +1,7 @@
 param([Parameter(Mandatory)][string]$Payload)
 $ErrorActionPreference='Stop'
 $privateRoot=[regex]::Escape([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')))
-foreach($name in @('companion-release.json','Podglow.exe','IslandAirPodsHost.exe','WPods.Service.exe','AirPodsAudio.dll','wpods_native.dll','hostfxr.dll','coreclr.dll','System.Windows.Forms.dll','locales/en-US.json','LICENSE','CREDITS.md','THIRD-PARTY-NOTICES.txt','licenses/WPods-THIRD-PARTY-NOTICES.txt','docs/BLUETOOTH-RECOVERY.md','support/Repair-Bluetooth.ps1')){
+foreach($name in @('companion-release.json','Podglow.exe','IslandAirPodsHost.exe','WPods.Service.exe','AirPodsAudio.dll','wpods_native.dll','hostfxr.dll','coreclr.dll','System.Windows.Forms.dll','locales/en-US.json','LICENSE','CREDITS.md','THIRD-PARTY-NOTICES.txt','licenses/WPods-THIRD-PARTY-NOTICES.txt','docs/BLUETOOTH-RECOVERY.md','docs/BLUETOOTH-STARTUP.md','support/Repair-Bluetooth.ps1')){
  if(!(Test-Path -LiteralPath (Join-Path $Payload $name))){throw "Missing runtime file: $name"}
 }
 $files=Get-ChildItem -LiteralPath $Payload -Recurse -File

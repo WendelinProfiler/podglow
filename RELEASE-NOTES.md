@@ -1,18 +1,20 @@
-# Podglow 0.1.5 experimental alpha
+# Podglow 0.1.6 experimental alpha
 
-This patch fixes an invalid USB-speed value in the Bluetooth proxy. It also includes a manual recovery tool for a virtual USB/IP controller that remains stuck after sleep.
+This patch fixes the startup path that could leave Bluetooth unavailable after a Windows restart, or leave a connected Magic Mouse without momentum and gestures when used with GlideMouse.
 
-## New in this version
+## What changed
 
-- Bluetooth radios with bulk endpoints are advertised as USB full or high speed, never low speed. The previous translation could cause Windows device error 43 and make Bluetooth disappear.
-- A narrowly scoped recovery script checks the installed Podglow service and exact usbip-win2 hardware identity before restarting only the virtual controller. It does not restart Windows or reset physical USB controllers.
-- A [Bluetooth recovery guide](docs/BLUETOOTH-RECOVERY.md) explains when updating is enough and when the virtual controller also needs a reset.
+- Intel USB Bluetooth hardware is initialized through its installed vendor driver before Podglow takes it over. A volatile marker makes this a once-per-Windows-boot step rather than repeating it on every service restart.
+- The service reports Ready only after Windows starts the virtual radio and the radio returns its HCI version. Opening a USB/IP socket is no longer enough.
+- A failed or missing virtual radio is detected. Recovery is bounded and only rebuilds the dedicated virtual controller after verifying that no USB/IP imports remain. A successful empty port listing is handled correctly.
+- When an already scoped USBPcap filter is present, the physical Bluetooth USB port is re-enumerated after its function-driver change. This restores the child filter that GlideMouse needs. No capture filter is installed on unrelated hubs.
+- The virtual microphone waits for radio readiness. Existing listening modes, tray controls and the user-approved updater remain available.
 
-Seven speed-policy checks passed. On the development Intel AX211 system, the patched service plus a virtual-controller reset restored Bluetooth, AirPods, ANC status and audio endpoints without a Windows restart. The recovery script passed its read-only target check. Other computers and a full sleep/resume validation of this package remain untested.
+Use **GlideMouse 0.1.1 alpha or newer** for the matching installer discovery and mouse-filter ownership fix. See [Bluetooth startup and GlideMouse](docs/BLUETOOTH-STARTUP.md).
 
-The native widget, tray scrolling and user-approved updater are retained. This is an unsigned experimental prerelease.
+The runtime fixes were verified on one Windows 11 x64 Intel Bluetooth development system after a full restart. Both filter stacks and fresh mouse touch reports were checked, and the user confirmed momentum, gestures and AirPods worked together. The public installer has been built and checked, but not installed on a clean second computer. Other adapters and sleep/resume remain unverified.
 
-Read [how updates work](docs/UPDATES.md) before installing.
+This is an experimental prerelease. Read [how updates work](docs/UPDATES.md) before installing.
 
 ## Installation
 
@@ -39,6 +41,6 @@ If Bluetooth is unavailable, use a touchpad or wired input to rerun Setup, then 
 - Battery reports depend on what the AirPods send. Older readings remain labelled as cached.
 - Apple fonts, extracted Apple glyphs and private product artwork are excluded. The public interface includes original Podglow device and listening-mode vectors.
 - WPods' upstream automatic installer stays disabled. Podglow checks only its own repository and asks before downloading or installing.
-- Multi-monitor, DPI, cold-start and device-switch hardware validation are still open.
+- Multi-monitor, DPI, other Bluetooth adapters and broader sleep/resume validation remain open.
 
 See CREDITS.md and licenses/ for upstream authors and required notices. WPods supplies the Bluetooth foundation; Podglow is an independent fork and interface.
